@@ -4,6 +4,13 @@ Each release of [saysdfTerm](https://github.com/saysdf/saysdfOpenTerm) has a sec
 (optionally followed by ` - YYYY-MM-DD`). `saysdf/tools/release-public.ps1` uses the section as
 the release commit message and refuses to release a version without one.
 
+## 0.1.1 - 2026-10-28
+
+- Published the requirements for UI localization (`openspec/specs/ui-localization`) and for
+  public releases (`openspec/specs/public-release`).
+- Clarified that a translation catalog may change a menu accelerator (`[_accel]` table) only to a
+  key that is free in that menu; it never displaces another entry's accelerator.
+
 ## 0.1.0 - 2026-10-28
 
 First public release of the saysdfTerm fork of WezTerm.

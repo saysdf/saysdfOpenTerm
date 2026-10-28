@@ -82,6 +82,8 @@ private_refs_allow = [
   "/.gitignore",
   "saysdf/public/manifest.toml",
   "saysdf/tools/release-public.ps1",
+  # the public-release requirements list the excluded paths
+  "openspec/specs/public-release/spec.md",
 ]
 
 # Private markers: one regex per line in a file OUTSIDE the repository, so the markers themselves
