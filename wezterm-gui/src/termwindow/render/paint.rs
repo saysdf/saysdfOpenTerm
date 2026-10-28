@@ -172,7 +172,9 @@ impl crate::TermWindow {
         // Clear out UI item positions; we'll rebuild these as we render
         self.ui_items.clear();
 
+        self.saysdf_sync_pane_header_rows(); // saysdfTerminal: pane-header D2
         let panes = self.get_panes_to_render();
+        let saysdf_headers = crate::termwindow::saysdf_pane_header::collect(&panes); // saysdfTerminal: pane-header D3
         let focused = self.focused.is_some();
         let window_is_transparent =
             !self.window_background.is_empty() || self.config.window_background_opacity != 1.0;
@@ -275,6 +277,9 @@ impl crate::TermWindow {
         self.paint_window_borders(&mut layers)
             .context("paint_window_borders")?;
         drop(layers);
+        self.saysdf_paint_pane_headers(saysdf_headers).context("saysdf_paint_pane_headers")?; // saysdfTerminal: pane-header D3
+        self.saysdf_paint_bars().context("saysdf_paint_bars")?; // saysdfTerminal: fork bars (menu-bar D1)
+        self.saysdf_paint_suggest().context("saysdf_paint_suggest")?; // saysdfTerminal: prompt-suggest - suggestions popup (D4)
         self.paint_modal().context("paint_modal")?;
 
         Ok(())

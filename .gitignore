@@ -66,3 +66,8 @@ dhat-heap.json
 /__pycache__/
 /nix/result
 *.qcow2
+
+# saysdfTerminal: screenshots from agent checks stay local (may show the user's desktop)
+saysdf/work/**/shots/
+saysdf/work/screenshots/
+/saysdfTerminal-src-*.zip

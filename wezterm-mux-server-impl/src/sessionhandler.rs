@@ -651,10 +651,11 @@ impl SessionHandler {
                             let pane = mux
                                 .get_pane(pane_id)
                                 .ok_or_else(|| anyhow!("no such pane {}", pane_id))?;
-                            pane.resize(size)?;
                             let tab = mux
                                 .get_tab(containing_tab_id)
                                 .ok_or_else(|| anyhow!("no such tab {}", containing_tab_id))?;
+                            // saysdfTerminal: pane-header - the client sends the full slot size, the pty excludes the header
+                            pane.resize(mux::tab::saysdf_leaf_size(size, tab.saysdf_header_rows()))?;
                             tab.rebuild_splits_sizes_from_contained_panes();
                             Ok(Pdu::UnitResponse(UnitResponse {}))
                         },
@@ -868,7 +869,8 @@ impl SessionHandler {
                             codec_vers: CODEC_VERSION,
                             version_string: config::wezterm_version().to_owned(),
                             executable_path,
-                            config_file_path: std::env::var_os("WEZTERM_CONFIG_FILE")
+                            // saysdfTerminal: rebrand
+                            config_file_path: std::env::var_os(saysdf_identity::CONFIG_FILE_ENV)
                                 .map(Into::into),
                         })))
                     }

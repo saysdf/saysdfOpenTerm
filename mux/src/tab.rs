@@ -46,6 +46,8 @@ struct TabInner {
     zoomed: Option<Arc<dyn Pane>>,
     title: String,
     recency: Recency,
+    /// saysdfTerminal: header rows above each leaf (pane-header D2), 0 means upstream behaviour.
+    header_rows: usize,
 }
 
 /// A Tab is a container of Panes
@@ -76,6 +78,8 @@ pub struct PositionedPane {
     pub pixel_height: usize,
     /// The pane instance
     pub pane: Arc<dyn Pane>,
+    /// saysdfTerminal: header rows above the pane (already subtracted from `height`, `top` shifted).
+    pub saysdf_header_rows: usize,
 }
 
 impl std::fmt::Debug for PositionedPane {
@@ -478,7 +482,7 @@ fn adjust_y_size(tree: &mut Tree, mut y_adjust: isize, cell_dimensions: &Termina
     }
 }
 
-fn apply_sizes_from_splits(tree: &Tree, size: &TerminalSize) {
+fn apply_sizes_from_splits(tree: &Tree, size: &TerminalSize, header_rows: usize) { // saysdfTerminal: pane-header
     match tree {
         Tree::Empty => return,
         Tree::Node { data: None, .. } => return,
@@ -487,11 +491,11 @@ fn apply_sizes_from_splits(tree: &Tree, size: &TerminalSize) {
             right,
             data: Some(data),
         } => {
-            apply_sizes_from_splits(&*left, &data.first);
-            apply_sizes_from_splits(&*right, &data.second);
+            apply_sizes_from_splits(&*left, &data.first, header_rows); // saysdfTerminal: pane-header
+            apply_sizes_from_splits(&*right, &data.second, header_rows); // saysdfTerminal: pane-header
         }
         Tree::Leaf(pane) => {
-            pane.resize(*size).ok();
+            pane.resize(saysdf_leaf_size(*size, header_rows)).ok(); // saysdfTerminal: pane-header
         }
     }
 }
@@ -764,6 +768,7 @@ impl TabInner {
             zoomed: None,
             title: String::new(),
             recency: Recency::default(),
+            header_rows: 0, // saysdfTerminal: pane-header
         }
     }
 
@@ -904,7 +909,7 @@ impl TabInner {
             self.size_before_zoom = size;
             if let Some(pane) = self.get_active_pane() {
                 pane.set_zoomed(true);
-                pane.resize(size).ok();
+                pane.resize(saysdf_leaf_size(size, self.header_rows)).ok(); // saysdfTerminal: pane-header
                 self.zoomed.replace(pane);
             }
         }
@@ -961,7 +966,7 @@ impl TabInner {
                 Err(c) => {
                     self.pane.replace(c.tree());
                     let size = self.size;
-                    apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size);
+                    apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size, self.header_rows); // saysdfTerminal: pane-header
                     break;
                 }
             }
@@ -992,7 +997,7 @@ impl TabInner {
                 Err(c) => {
                     self.pane.replace(c.tree());
                     let size = self.size;
-                    apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size);
+                    apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size, self.header_rows); // saysdfTerminal: pane-header
                     break;
                 }
             }
@@ -1006,7 +1011,7 @@ impl TabInner {
         if respect_zoom_state {
             if let Some(zoomed) = self.zoomed.as_ref() {
                 let size = self.size;
-                panes.push(PositionedPane {
+                let mut pos = PositionedPane { // saysdfTerminal: pane-header
                     index: 0,
                     is_active: true,
                     is_zoomed: true,
@@ -1017,7 +1022,10 @@ impl TabInner {
                     height: size.rows.into(),
                     pixel_height: size.pixel_height.into(),
                     pane: Arc::clone(zoomed),
-                });
+                    saysdf_header_rows: 0, // saysdfTerminal: pane-header
+                };
+                saysdf_shift_positioned(&mut pos, self.header_rows); // saysdfTerminal: pane-header
+                panes.push(pos); // saysdfTerminal: pane-header
                 return panes;
             }
         }
@@ -1052,7 +1060,7 @@ impl TabInner {
                 let pane = Arc::clone(cursor.leaf_mut().unwrap());
                 let dims = parent_size.unwrap_or_else(|| root_size);
 
-                panes.push(PositionedPane {
+                let mut pos = PositionedPane { // saysdfTerminal: pane-header
                     index,
                     is_active: index == active_idx,
                     is_zoomed: zoomed_id == Some(pane.pane_id()),
@@ -1063,7 +1071,10 @@ impl TabInner {
                     pixel_width: dims.pixel_width as _,
                     pixel_height: dims.pixel_height as _,
                     pane,
-                });
+                    saysdf_header_rows: 0, // saysdfTerminal: pane-header
+                };
+                saysdf_shift_positioned(&mut pos, self.header_rows); // saysdfTerminal: pane-header
+                panes.push(pos); // saysdfTerminal: pane-header
             }
 
             match cursor.preorder_next() {
@@ -1144,7 +1155,7 @@ impl TabInner {
 
         if let Some(zoomed) = &self.zoomed {
             self.size = size;
-            zoomed.resize(size).ok();
+            zoomed.resize(saysdf_leaf_size(size, self.header_rows)).ok(); // saysdfTerminal: pane-header
         } else {
             let dims = cell_dimensions(&size);
             let (min_x, min_y) = compute_min_size(self.pane.as_mut().unwrap());
@@ -1176,7 +1187,7 @@ impl TabInner {
             self.size = size;
 
             // And then resize the individual panes to match
-            apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size);
+            apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size, self.header_rows); // saysdfTerminal: pane-header
         }
 
         Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(self.id)));
@@ -1220,7 +1231,8 @@ impl TabInner {
             return;
         }
 
-        fn compute_size(node: &mut Tree) -> Option<TerminalSize> {
+        // saysdfTerminal: pane-header - `header_rows` is added back to the leaf's pty size.
+        fn compute_size(node: &mut Tree, header_rows: usize) -> Option<TerminalSize> {
             match node {
                 Tree::Empty => None,
                 Tree::Leaf(pane) => {
@@ -1232,14 +1244,14 @@ impl TabInner {
                         pixel_width: dims.pixel_width,
                         dpi: dims.dpi,
                     };
-                    Some(size)
+                    Some(saysdf_full_leaf_size(size, header_rows)) // saysdfTerminal: pane-header
                 }
                 Tree::Node { left, right, data } => {
                     if let Some(data) = data {
-                        if let Some(first) = compute_size(left) {
+                        if let Some(first) = compute_size(left, header_rows) { // saysdfTerminal: pane-header
                             data.first = first;
                         }
-                        if let Some(second) = compute_size(right) {
+                        if let Some(second) = compute_size(right, header_rows) { // saysdfTerminal: pane-header
                             data.second = second;
                         }
                         Some(data.size())
@@ -1250,8 +1262,9 @@ impl TabInner {
             }
         }
 
+        let header_rows = self.header_rows; // saysdfTerminal: pane-header
         if let Some(root) = self.pane.as_mut() {
-            if let Some(size) = compute_size(root) {
+            if let Some(size) = compute_size(root, header_rows) { // saysdfTerminal: pane-header
                 self.size = size;
             }
         }
@@ -1359,7 +1372,10 @@ impl TabInner {
 
             if cursor.is_leaf() {
                 // Apply our size to the tty
-                cursor.leaf_mut().map(|pane| pane.resize(pane_size));
+                let header_rows = self.header_rows; // saysdfTerminal: pane-header
+                cursor
+                    .leaf_mut()
+                    .map(|pane| pane.resize(saysdf_leaf_size(pane_size, header_rows))); // saysdfTerminal: pane-header
             } else {
                 self.apply_pane_size(pane_size, &mut cursor);
             }
@@ -1666,13 +1682,13 @@ impl TabInner {
                         };
 
                         if let Some(unsplit) = cursor.leaf_mut() {
-                            unsplit.resize(size).ok();
+                            unsplit.resize(saysdf_leaf_size(size, self.header_rows)).ok(); // saysdfTerminal: pane-header
                         } else {
                             self.apply_pane_size(size, &mut cursor);
                         }
                     } else if !dead_panes.is_empty() {
                         // Apply our revised size to the tty
-                        pane.resize(pane_size).ok();
+                        pane.resize(saysdf_leaf_size(pane_size, self.header_rows)).ok(); // saysdfTerminal: pane-header
                     }
 
                     pane_index += 1;
@@ -1854,7 +1870,7 @@ impl TabInner {
 
             // Advise the panes of their new sizes
             let size = self.size;
-            apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size);
+            apply_sizes_from_splits(self.pane.as_mut().unwrap(), &size, self.header_rows); // saysdfTerminal: pane-header
         }
 
         // And update focus
@@ -1927,13 +1943,14 @@ impl TabInner {
         self.set_zoomed(false);
 
         self.iter_panes().iter().nth(pane_index).map(|pos| {
+            let height = pos.height + pos.saysdf_header_rows; // saysdfTerminal: pane-header - full leaf height
             let ((width1, width2), (height1, height2)) = match request.direction {
                 SplitDirection::Horizontal => (
                     split_dimension(pos.width, request),
-                    (pos.height, pos.height),
+                    (height, height), // saysdfTerminal: pane-header
                 ),
                 SplitDirection::Vertical => {
-                    ((pos.width, pos.width), split_dimension(pos.height, request))
+                    ((pos.width, pos.width), split_dimension(height, request)) // saysdfTerminal: pane-header
                 }
             };
 
@@ -2057,8 +2074,8 @@ impl TabInner {
                 (pane, existing_pane)
             };
 
-            pane1.resize(split_info.first)?;
-            pane2.resize(split_info.second.clone())?;
+            pane1.resize(saysdf_leaf_size(split_info.first, self.header_rows))?; // saysdfTerminal: pane-header
+            pane2.resize(saysdf_leaf_size(split_info.second.clone(), self.header_rows))?; // saysdfTerminal: pane-header
 
             *cursor.leaf_mut().unwrap() = pane1;
 
@@ -2195,6 +2212,100 @@ impl Into<String> for SerdeUrl {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// saysdfTerminal: pane headers (change pane-header, D2). `header_rows` rows are reserved above
+// each leaf: the leaf's pty size shrinks where the split tree hands out sizes, and
+// `PositionedPane.top` shifts, so the pty size and the paint rectangle stay consistent.
+// ---------------------------------------------------------------------------------------------
+
+/// How many header rows a leaf of height `rows` really gets: a header only if the pane
+/// keeps at least one row (`rows > header_rows`).
+pub fn saysdf_effective_header_rows(rows: usize, header_rows: usize) -> usize {
+    if header_rows > 0 && rows > header_rows {
+        header_rows
+    } else {
+        0
+    }
+}
+
+/// pty size of a leaf that the split tree gives `size`.
+pub fn saysdf_leaf_size(size: TerminalSize, header_rows: usize) -> TerminalSize {
+    let h = saysdf_effective_header_rows(size.rows, header_rows);
+    if h == 0 {
+        return size;
+    }
+    let cell_h = size.pixel_height.checked_div(size.rows).unwrap_or(0);
+    TerminalSize {
+        rows: size.rows - h,
+        pixel_height: size.pixel_height.saturating_sub(h * cell_h),
+        ..size
+    }
+}
+
+/// Inverse of `saysdf_leaf_size`: the full leaf size from its pty size (a leaf with a pty of >= 1 row
+/// got the reserve when headers are on). For `rebuild_splits_sizes_from_contained_panes`.
+pub fn saysdf_full_leaf_size(size: TerminalSize, header_rows: usize) -> TerminalSize {
+    if header_rows == 0 || size.rows == 0 {
+        return size;
+    }
+    let cell_h = size.pixel_height.checked_div(size.rows).unwrap_or(0);
+    TerminalSize {
+        rows: size.rows + header_rows,
+        pixel_height: size.pixel_height + header_rows * cell_h,
+        ..size
+    }
+}
+
+fn saysdf_shift_positioned(pos: &mut PositionedPane, header_rows: usize) {
+    let h = saysdf_effective_header_rows(pos.height, header_rows);
+    if h == 0 {
+        return;
+    }
+    let cell_h = pos.pixel_height.checked_div(pos.height).unwrap_or(0);
+    pos.top += h;
+    pos.height -= h;
+    pos.pixel_height = pos.pixel_height.saturating_sub(h * cell_h);
+    pos.saysdf_header_rows = h;
+}
+
+impl Tab {
+    /// saysdfTerminal: header rows above each pane (0/1). On change the leaf sizes
+    /// are recomputed from the split tree (the tree itself is unchanged). `true` means the value changed.
+    pub fn saysdf_set_header_rows(&self, rows: usize) -> bool {
+        let mut inner = self.inner.lock();
+        if inner.header_rows == rows {
+            return false;
+        }
+        inner.header_rows = rows;
+        let size = inner.size;
+        if let Some(zoomed) = inner.zoomed.as_ref() {
+            // the tree leaves get their sizes when leaving zoom (toggle_zoom -> resize)
+            zoomed.resize(saysdf_leaf_size(size, rows)).ok();
+        } else if let Some(root) = inner.pane.as_ref() {
+            apply_sizes_from_splits(root, &size, rows);
+        }
+        let id = inner.id;
+        drop(inner);
+        Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(id)));
+        true
+    }
+
+    pub fn saysdf_header_rows(&self) -> usize {
+        self.inner.lock().header_rows
+    }
+
+    /// saysdfTerminal: a single lock-free walk over the tab's panes (`try_lock`, like `count_panes`):
+    /// (pane count, whether all satisfy `pred`). `None` means the tab is busy in another thread.
+    pub fn saysdf_try_census(&self, pred: impl Fn(&Arc<dyn Pane>) -> bool) -> Option<(usize, bool)> {
+        let mut inner = self.inner.try_lock()?;
+        if inner.pane.is_none() {
+            return Some((0, true));
+        }
+        let panes = inner.iter_panes_ignoring_zoom();
+        Some((panes.len(), panes.iter().all(|p| pred(&p.pane))))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -2267,7 +2378,19 @@ mod test {
         }
 
         fn get_dimensions(&self) -> RenderableDimensions {
-            unimplemented!();
+            // saysdfTerminal: pane-header - needed by the rebuild_splits_sizes_from_contained_panes test
+            let size = *self.size.lock();
+            RenderableDimensions {
+                cols: size.cols,
+                viewport_rows: size.rows,
+                scrollback_rows: size.rows,
+                physical_top: 0,
+                scrollback_top: 0,
+                dpi: size.dpi,
+                pixel_width: size.pixel_width,
+                pixel_height: size.pixel_height,
+                reverse_video: false,
+            }
         }
 
         fn get_title(&self) -> String {
@@ -2314,6 +2437,204 @@ mod test {
         fn get_current_working_dir(&self, _policy: CachePolicy) -> Option<Url> {
             None
         }
+    }
+
+    // saysdfTerminal: pane-header D2 - layout with pane headers.
+    fn saysdf_fake(id: PaneId, size: TerminalSize) -> (Arc<FakePane>, Arc<dyn Pane>) {
+        let p = Arc::new(FakePane {
+            id,
+            size: Mutex::new(size),
+        });
+        let d: Arc<dyn Pane> = p.clone();
+        (p, d)
+    }
+
+    fn saysdf_split(tab: &Tab, idx: usize, dir: SplitDirection, id: PaneId) -> Arc<FakePane> {
+        let req = SplitRequest {
+            direction: dir,
+            ..Default::default()
+        };
+        let sz = tab.compute_split_size(idx, req).unwrap();
+        let (p, d) = saysdf_fake(id, sz.second);
+        tab.split_and_insert(idx, req, d).unwrap();
+        p
+    }
+
+    /// Panes cover the tab with no vertical gaps: each pane's bottom edge is either the tab edge
+    /// or another pane's header starts below it (across the divider); pty = rectangle.
+    fn saysdf_check_cover(tab: &Tab, rows: usize, cols: usize) {
+        let panes = tab.iter_panes();
+        let max_bottom = panes.iter().map(|p| p.top + p.height).max().unwrap();
+        let max_right = panes.iter().map(|p| p.left + p.width).max().unwrap();
+        assert_eq!(max_bottom, rows, "{:?}", panes);
+        assert_eq!(max_right, cols, "{:?}", panes);
+        for p in panes.iter() {
+            let fake = p.pane.downcast_ref::<FakePane>().unwrap();
+            let sz = *fake.size.lock();
+            assert_eq!(sz.rows, p.height, "pty pane {}", fake.id);
+            assert_eq!(sz.cols, p.width);
+            let bottom = p.top + p.height;
+            if bottom != rows {
+                assert!(
+                    panes.iter().any(|q| q.top - q.saysdf_header_rows == bottom + 1
+                        && q.left < p.left + p.width
+                        && p.left < q.left + q.width),
+                    "hole below pane {}: {:?}",
+                    p.pane.pane_id(),
+                    panes
+                );
+            }
+        }
+        // the tree matches the tab: resizing to the same size changes nothing
+        let before: Vec<_> = panes.iter().map(|p| (p.top, p.height, p.left, p.width)).collect();
+        tab.resize(tab.get_size());
+        let after: Vec<_> = tab.iter_panes().iter().map(|p| (p.top, p.height, p.left, p.width)).collect();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn saysdf_header_split_after_header_enabled() {
+        let size = TerminalSize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 800,
+            pixel_height: 600,
+            dpi: 96,
+        };
+        for dirs in [
+            [SplitDirection::Horizontal, SplitDirection::Vertical, SplitDirection::Vertical],
+            [SplitDirection::Vertical, SplitDirection::Vertical, SplitDirection::Horizontal],
+            [SplitDirection::Vertical, SplitDirection::Vertical, SplitDirection::Vertical],
+        ] {
+            let tab = Tab::new(&size);
+            let (_p1, d1) = saysdf_fake(1, size);
+            tab.assign_pane(&d1);
+            tab.saysdf_set_header_rows(1);
+            let mut id = 2;
+            for (n, dir) in dirs.iter().enumerate() {
+                // split the last pane (the new split pane is the next by index)
+                saysdf_split(&tab, n, *dir, id);
+                id += 1;
+                saysdf_check_cover(&tab, 24, 80);
+            }
+            assert_eq!(tab.iter_panes().len(), 4);
+            // the sum over a vertical column = tab height
+            let panes = tab.iter_panes();
+            let x = panes[3].left;
+            let col: Vec<_> = panes.iter().filter(|p| p.left <= x && x < p.left + p.width).collect();
+            let sum: usize = col.iter().map(|p| p.saysdf_header_rows + p.height).sum::<usize>() + col.len() - 1;
+            assert_eq!(sum, 24, "{:?}", panes);
+
+            // M2: the tree rebuilt from pty sizes (mux server after Pdu::Resize) matches
+            let before: Vec<_> = panes.iter().map(|p| (p.top, p.height, p.left, p.width)).collect();
+            tab.rebuild_splits_sizes_from_contained_panes();
+            assert_eq!(tab.get_size().rows, 24);
+            let after: Vec<_> = tab.iter_panes().iter().map(|p| (p.top, p.height, p.left, p.width)).collect();
+            assert_eq!(before, after);
+            saysdf_check_cover(&tab, 24, 80);
+        }
+    }
+
+    #[test]
+    fn saysdf_header_effective_rows() {
+        assert_eq!(saysdf_effective_header_rows(24, 0), 0);
+        assert_eq!(saysdf_effective_header_rows(24, 1), 1);
+        assert_eq!(saysdf_effective_header_rows(2, 1), 1);
+        assert_eq!(saysdf_effective_header_rows(1, 1), 0);
+        let s = TerminalSize {
+            rows: 10,
+            cols: 10,
+            pixel_width: 100,
+            pixel_height: 200,
+            dpi: 96,
+        };
+        let l = saysdf_leaf_size(s, 1);
+        assert_eq!((l.rows, l.pixel_height, l.cols), (9, 180, 10));
+        assert_eq!(saysdf_leaf_size(s, 0), s);
+    }
+
+    #[test]
+    fn saysdf_header_layout_splits_and_zoom() {
+        let size = TerminalSize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 800,
+            pixel_height: 600,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        let (p1, d1) = saysdf_fake(1, size);
+        tab.assign_pane(&d1);
+
+        // one pane, header_rows = 0: upstream unchanged
+        let panes = tab.iter_panes();
+        assert_eq!((panes[0].top, panes[0].height, panes[0].saysdf_header_rows), (0, 24, 0));
+
+        // horizontal split + vertical split in the second column
+        let p2 = saysdf_split(&tab, 0, SplitDirection::Horizontal, 2);
+        let p3 = saysdf_split(&tab, 1, SplitDirection::Vertical, 3);
+        let before: Vec<(usize, usize)> = tab.iter_panes().iter().map(|p| (p.top, p.height)).collect();
+
+        assert!(tab.saysdf_set_header_rows(1));
+        assert!(!tab.saysdf_set_header_rows(1));
+        let panes = tab.iter_panes();
+        assert_eq!(panes.len(), 3);
+        for (p, (top, h)) in panes.iter().zip(before.iter()) {
+            assert_eq!(p.saysdf_header_rows, 1);
+            assert_eq!(p.top, top + 1);
+            assert_eq!(p.height, h - 1);
+        }
+        // pty = paint rectangle
+        for (fake, pos) in [&p1, &p2, &p3].iter().zip(panes.iter()) {
+            let sz = *fake.size.lock();
+            assert_eq!(sz.rows, pos.height, "pane {}", fake.id);
+            assert_eq!(sz.cols, pos.width);
+            assert_eq!(sz.pixel_height, pos.pixel_height);
+        }
+        // column 2: header + rows + divider + header + rows = tab height
+        assert_eq!(1 + panes[1].height + 1 + 1 + panes[2].height, 24);
+        assert_eq!(1 + panes[0].height, 24);
+
+        // resizing the tab keeps the reserve
+        tab.resize(TerminalSize {
+            rows: 30,
+            cols: 100,
+            pixel_width: 1000,
+            pixel_height: 750,
+            dpi: 96,
+        });
+        let panes = tab.iter_panes();
+        assert_eq!(1 + panes[0].height, 30);
+        assert_eq!(1 + panes[1].height + 1 + 1 + panes[2].height, 30);
+        assert_eq!(p1.size.lock().rows, panes[0].height);
+        assert_eq!(p3.size.lock().rows, panes[2].height);
+
+        // zoom: the zoomed pane also has a header
+        // the new pane of the last split is active (p3)
+        tab.toggle_zoom();
+        let panes = tab.iter_panes();
+        assert_eq!(panes.len(), 1);
+        assert!(panes[0].is_zoomed);
+        assert_eq!((panes[0].top, panes[0].height), (1, 29));
+        assert_eq!(p3.size.lock().rows, 29);
+        tab.toggle_zoom();
+        let panes = tab.iter_panes();
+        assert_eq!(p3.size.lock().rows, panes[2].height);
+
+        // turning off: upstream
+        assert!(tab.saysdf_set_header_rows(0));
+        let panes = tab.iter_panes();
+        assert_eq!(panes[0].top, 0);
+        assert_eq!(panes[0].height, 30);
+        assert_eq!(p1.size.lock().rows, 30);
+
+        // removing a pane: the remaining ones get the size including the reserve
+        tab.saysdf_set_header_rows(1);
+        tab.remove_pane(3);
+        let panes = tab.iter_panes();
+        assert_eq!(panes.len(), 2);
+        assert_eq!(p2.size.lock().rows, panes[1].height);
+        assert_eq!(panes[1].height, 29);
     }
 
     #[test]

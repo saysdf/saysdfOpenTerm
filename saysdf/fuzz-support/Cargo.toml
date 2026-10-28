@@ -1,0 +1,11 @@
+[package]
+name = "saysdf-fuzz-support"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: shared feed_* entry points for cargo-fuzz targets and stable garbage-input tests"
+
+[dependencies]
+vtparse = { workspace = true, features = ["std"] }
+wezterm-escape-parser = { workspace = true, features = ["std", "use_image"] }
+wezterm-term.workspace = true

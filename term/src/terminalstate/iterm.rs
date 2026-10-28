@@ -34,7 +34,9 @@ impl TerminalState {
             }
         };
 
-        if let Err(err) = check_image_dimensions(info.width, info.height) {
+        // saysdfTerminal: inline-graphics — limit from config
+        if let Err(err) = check_image_dimensions(info.width, info.height, self.config.max_image_pixels())
+        {
             log::error!("{err:#}, {info:#?}");
             return;
         }
@@ -100,6 +102,16 @@ impl TerminalState {
             }
             (Some(w), Some(h)) => (w, h),
         };
+
+        // saysdfTerminal: inline-graphics — the requested target size (width=/height=) is
+        // bounded too: it is resampled to and placed over cells (no hang on width=99999).
+        let target_w = width.min(u32::MAX as usize) as u32;
+        let target_h = height.min(u32::MAX as usize) as u32;
+        if let Err(err) = check_image_dimensions(target_w, target_h, self.config.max_image_pixels())
+        {
+            log::error!("iTerm2 image target size: {err:#}");
+            return;
+        }
 
         let downscaled = (width < info.width as usize) || (height < info.height as usize);
         let data = match (downscaled, info.format) {

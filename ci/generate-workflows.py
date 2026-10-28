@@ -32,7 +32,7 @@ TRIGGER_PATHS_UNIX = [
     "assets/shell-integration/**/*",
     "assets/wezterm-nautilus.py",
     "assets/wezterm.appdata.xml",
-    "assets/wezterm.desktop",
+    "assets/saysdfTerm.desktop",
     "get-deps",
     "ci/tag-name.sh",
     "termwiz/data/wezterm.terminfo",

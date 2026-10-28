@@ -504,6 +504,16 @@ impl LauncherState {
 
     fn run_loop(&mut self, term: &mut TermWizTerminal) -> anyhow::Result<()> {
         while let Ok(Some(event)) = term.poll_input(None) {
+            // saysdfTerminal: layout-independent-keys — labels and j k / by physical key unless filtering (D4)
+            let event = if self.filtering {
+                event
+            } else {
+                super::saysdf_overlay_keys::command_event(
+                    event,
+                    term.last_key_phys(),
+                    &[&self.alphabet, "jk/"],
+                )?
+            };
             match event {
                 InputEvent::Key(KeyEvent {
                     key: KeyCode::Char(c),

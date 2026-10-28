@@ -56,6 +56,12 @@ struct ParseState {
     get_tcap: Option<GetTcapBuilder>,
     #[cfg(feature = "tmux_cc")]
     tmux_state: Option<RefCell<crate::tmux_cc::Parser>>,
+    // saysdfTerminal: inline-graphics — cap on accumulated DCS bytes (DECRQSS, Sixel, XTGETTCAP),
+    // same ceiling as OSC/APC in vtparse; 0 = vtparse::MAX_SEQUENCE_BYTES (tests set a small cap).
+    // Streaming DCS (passthrough, tmux -CC) does not accumulate and is not capped.
+    dcs_bytes: usize,
+    dcs_max_bytes: usize,
+    dcs_overflow: bool,
 }
 
 /// The `Parser` struct holds the state machine that is used to decode
@@ -243,6 +249,9 @@ impl<'a, F: FnMut(Action)> VTActor for Performer<'a, F> {
         self.state.sixel.take();
         self.state.get_tcap.take();
         self.state.dcs.take();
+        // saysdfTerminal: inline-graphics — reset the DCS length cap
+        self.state.dcs_bytes = 0;
+        self.state.dcs_overflow = false;
         if byte == b'q' && intermediates.is_empty() && !ignored_extra_intermediates {
             self.state.sixel.replace(SixelBuilder::new(params));
         } else if byte == b'q' && intermediates == [b'+'] {
@@ -273,6 +282,26 @@ impl<'a, F: FnMut(Action)> VTActor for Performer<'a, F> {
     }
 
     fn dcs_put(&mut self, data: u8) {
+        // saysdfTerminal: inline-graphics — drop an accumulating DCS longer than the cap
+        if self.state.dcs_overflow {
+            return;
+        }
+        if self.state.dcs.is_some() || self.state.sixel.is_some() || self.state.get_tcap.is_some()
+        {
+            let cap = match self.state.dcs_max_bytes {
+                0 => vtparse::MAX_SEQUENCE_BYTES,
+                n => n,
+            };
+            if self.state.dcs_bytes >= cap {
+                log::warn!("DCS sequence longer than {} bytes dropped", cap);
+                self.state.dcs.take();
+                self.state.sixel.take();
+                self.state.get_tcap.take();
+                self.state.dcs_overflow = true;
+                return;
+            }
+            self.state.dcs_bytes += 1;
+        }
         if let Some(dcs) = self.state.dcs.as_mut() {
             dcs.data.push(data);
         } else if let Some(sixel) = self.state.sixel.as_mut() {
@@ -303,6 +332,12 @@ impl<'a, F: FnMut(Action)> VTActor for Performer<'a, F> {
     }
 
     fn dcs_unhook(&mut self) {
+        // saysdfTerminal: inline-graphics — oversized DCS is dropped without dispatch
+        if self.state.dcs_overflow {
+            self.state.dcs_overflow = false;
+            self.state.dcs_bytes = 0;
+            return;
+        }
         if let Some(dcs) = self.state.dcs.take() {
             (self.callback)(Action::DeviceControl(
                 DeviceControlMode::ShortDeviceControl(Box::new(dcs)),
@@ -360,6 +395,32 @@ mod test {
     use crate::{EscCode, OneBased};
     use k9::assert_equal as assert_eq;
     use std::io::Write;
+
+    // saysdfTerminal: inline-graphics — DCS length cap (small cap via the private field)
+    #[test]
+    fn saysdf_dcs_over_cap_is_dropped() {
+        let parse = |cap: usize, bytes: &[u8]| {
+            let mut p = Parser::new();
+            p.state.borrow_mut().dcs_max_bytes = cap;
+            p.parse_as_vec(bytes)
+        };
+        let short_dcs = |a: &Action| {
+            matches!(a, Action::DeviceControl(DeviceControlMode::ShortDeviceControl(_)))
+        };
+        // DECRQSS: 4 data bytes fit a cap of 4, 5 do not
+        let at = parse(4, b"\x1bP$qabcd\x1b\\x");
+        assert!(at.iter().any(short_dcs));
+        let over = parse(4, b"\x1bP$qabcde\x1b\\x");
+        assert!(!over.iter().any(short_dcs));
+        assert!(matches!(over.last(), Some(Action::Print('x'))));
+        // Sixel over the cap is dropped; the next DCS is parsed normally
+        let sixel = parse(4, b"\x1bPq#0~~~~~~~~\x1b\\\x1bP$qm\x1b\\");
+        assert!(!sixel.iter().any(|a| matches!(a, Action::Sixel(_))));
+        assert!(sixel.iter().any(short_dcs));
+        // default cap is the vtparse ceiling
+        assert!(Parser::new().state.borrow().dcs_max_bytes == 0);
+        assert!(vtparse::MAX_SEQUENCE_BYTES == 64 * 1024 * 1024);
+    }
 
     fn encode(seq: &Vec<Action>) -> String {
         let mut res = Vec::new();

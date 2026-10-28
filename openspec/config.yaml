@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  Language: en
+  All artifacts must be written in en.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Project: saysdfTerminal — a personal fork of WezTerm (Rust, GPU terminal).
+  The application is called saysdfTerm (the binary and the config folder).
+  The fork's features are Lua modules embedded in the binary (see bundled-lua-modules);
+  TUI tools (code viewer, Markdown, Mermaid, diff, database, monitor)
+  are standalone Rust utilities in this repo, with no Node and no browser.
+  Upstream: https://github.com/wezterm/wezterm (remote `upstream`, push disabled).
+
+  Goal: a CLion-style terminal — terminal and file viewing side by side:
+  built-in git, convenient tabs, Markdown and Mermaid preview, graphics in the terminal.
+
+  Constraints:
+  - Cross-platform: Windows, Linux, macOS. A feature that works on only one OS
+    must say so explicitly and be disabled cleanly on the others.
+  - Security over convenience: no browser <-> shell bridges, no network
+    listeners and no network access unless the user explicitly enables it.
+    Terminal output is untrusted data: it must not start processes
+    or open files on its own without a user action.
+  - New upstream code goes through a security review before build and merge (see the fork's upstream-sync notes).
+  - Whenever possible, implement features as Lua modules shipped with
+    the terminal; patch Rust only when Lua is not enough. This makes it easier
+    to live with merges from upstream.
+  - External utilities (glow, lazygit, mmdc, etc.) are optional dependencies:
+    the terminal works without them, and the feature reports what is missing.
+
+rules:
+  proposal:
+    - State whether the feature works on Windows, Linux and macOS
+    - Note new external dependencies and their security impact
+  design:
+    - Compare the Lua approach with the Rust patch approach and explain the choice

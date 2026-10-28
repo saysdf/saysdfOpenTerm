@@ -403,32 +403,16 @@ impl GlState {
     fn with_egl_lib<F: FnMut(EglWrapper) -> anyhow::Result<Self>>(
         mut func: F,
     ) -> anyhow::Result<Self> {
-        let mut paths: Vec<std::path::PathBuf> = vec![
-            #[cfg(target_os = "windows")]
-            "libEGL.dll".into(),
-            #[cfg(target_os = "windows")]
-            "atioglxx.dll".into(),
+        // saysdfTerminal: we no longer bundle ANGLE (Windows) or MetalANGLE
+        // (macOS), so there is no EGL to load on those platforms; the
+        // callers fall back to WGL/CGL. Loading a bare "libEGL.dll" name
+        // would also let the DLL search order pick up an untrusted copy.
+        let paths: Vec<std::path::PathBuf> = vec![
             #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
             "libEGL.so.1".into(),
             #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
             "libEGL.so".into(),
         ];
-
-        if cfg!(target_os = "macos") {
-            // On macOS, let's look in the application directory to see
-            // if we've deployed libEGL.dylib alongside; if so, we want
-            // to try loading that.
-            paths.push(
-                std::env::current_exe()?
-                    .parent()
-                    .ok_or_else(|| anyhow!("current_exe isn't in a directory!?"))?
-                    .join("libEGL.dylib"),
-            );
-
-            // And just in case, let's also allow loading via
-            // DYLD_LIBRARY_PATH
-            paths.push("libEGL.dylib".into());
-        }
 
         let mut errors = vec![];
         let mut prefer_swrast = crate::configuration::prefer_swrast();

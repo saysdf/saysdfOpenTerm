@@ -15,6 +15,10 @@ use xkb::compose::Status as ComposeStatus;
 use xkbcommon::xkb;
 use xkbcommon::xkb::{LayoutIndex, ModMask};
 
+// saysdfTerminal: layout-independent-keys — IME-committed text keeps the physical key of its press
+#[path = "saysdf_ime.rs"]
+pub(crate) mod saysdf_ime;
+
 pub struct Keyboard {
     context: xkb::Context,
     keymap: RefCell<xkb::Keymap>,

@@ -1,0 +1,18 @@
+# Russian catalog of `saysdf git-run`, `saysdf git-status` and the side panel result channel
+# (saysdf/cli/src/cmd/git_run.rs, cmd/git_status.rs, sidebar.rs).
+
+# ---- `saysdf git-run`: summary printed in the split after git exits ----
+# Shown in brackets; {command} is the git subcommand (`push`, `pull`), keep it.
+"git {command}: done" = "git {command}: готово"
+# Shown in brackets; {code} is the exit code.
+"git exited with code {code}" = "git завершился с кодом {code}"
+# Prompt on the same line, waits for Enter.
+"Press Enter to close…" = "Нажмите Enter, чтобы закрыть…"
+
+# ---- Side panel pick list (`saysdf pick`, `saysdf files` in the sidebar): errors ----
+# {error} is the JSON parser error text.
+"list: {error}" = "список: {error}"
+"list: an array is expected" = "список: ожидается массив"
+# {size} is a number of megabytes.
+"the list is larger than {size} MB" = "список больше {size} МБ"
+"the result is longer than 4 KB" = "результат длиннее 4 КБ"

@@ -1,0 +1,17 @@
+# Russian catalog of the `saysdf` binary's shared parts, `saysdf pick` and `saysdf help`
+# (saysdf/cli/src/main.rs, cmd/pick.rs, cmd/help.rs). `--help` stays English (clap doc
+# comments). The F1 help text itself is a whole document: saysdf/locales/ru/help.md.
+
+# ---- `saysdf help` (F1) ----
+# Markdown heading of the hotkey table appended to the help document.
+"Hotkeys" = "Хоткеи"
+
+# ---- `saysdf pick`: side panel pick list ----
+# Default window title when the caller passes no --title.
+"Pick" = "Выбор"
+# Hint line at the bottom; key names stay as they are.
+"↑↓ item, Enter select, / search, Esc cancel" = "↑↓ пункт, Enter выбрать, / поиск, Esc отмена"
+# Status message: Enter on an empty list.
+"empty" = "пусто"
+# stderr after the TUI exits; {error} is the system error text.
+"terminal: {error}" = "терминал: {error}"

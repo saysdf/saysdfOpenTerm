@@ -1,0 +1,134 @@
+diff -ruN /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossterm-0.29.0/src/event/sys/unix/parse.rs crossterm/src/event/sys/unix/parse.rs
+--- /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossterm-0.29.0/src/event/sys/unix/parse.rs	2006-07-24 04:21:28.000000000 +0300
++++ crossterm/src/event/sys/unix/parse.rs	2026-10-19 12:20:44.905450544 +0300
+@@ -595,23 +595,30 @@
+     // and the terminal sends a keyboard event containing shift, the sequence will
+     // contain an additional codepoint separated by a ':' character which contains
+     // the shifted character according to the keyboard layout.
+-    if modifiers.contains(KeyModifiers::SHIFT) {
+-        if let Some(shifted_c) = codepoints
++    // saysdfTerminal: base-layout key: alternates are `shifted:base`, either may be empty
++    let mut next_alternate = || {
++        codepoints
+             .next()
+             .and_then(|codepoint| codepoint.parse::<u32>().ok())
+             .and_then(char::from_u32)
+-        {
++    };
++    let shifted_alternate = next_alternate();
++    let base_layout = next_alternate();
++    if modifiers.contains(KeyModifiers::SHIFT) {
++        if let Some(shifted_c) = shifted_alternate {
+             keycode = KeyCode::Char(shifted_c);
+             modifiers.set(KeyModifiers::SHIFT, false);
+         }
+     }
+ 
+-    let input_event = Event::Key(KeyEvent::new_with_kind_and_state(
++    let mut key_event = KeyEvent::new_with_kind_and_state(
+         keycode,
+         modifiers,
+         kind,
+         state_from_keycode | state_from_modifiers,
+-    ));
++    );
++    key_event.base_layout = base_layout; // saysdfTerminal: base-layout key
++    let input_event = Event::Key(key_event);
+ 
+     Ok(Some(InternalEvent::Event(input_event)))
+ }
+@@ -1308,6 +1315,27 @@
+         );
+     }
+ 
++    // saysdfTerminal: base-layout key
++    #[test]
++    fn test_parse_csi_u_encoded_base_layout_key() {
++        let parse = |b: &[u8]| match parse_csi_u_encoded_key_code(b).unwrap() {
++            Some(InternalEvent::Event(Event::Key(k))) => k,
++            other => panic!("unexpected {other:?}"),
++        };
++        let k = parse(b"\x1B[1085::121u");
++        assert_eq!(k.code, KeyCode::Char('н'));
++        assert_eq!(k.modifiers, KeyModifiers::empty());
++        assert_eq!(k.base_layout, Some('y'));
++
++        let k = parse(b"\x1B[1085:1053:121;2u");
++        assert_eq!(k.code, KeyCode::Char('Н'));
++        assert_eq!(k.modifiers, KeyModifiers::empty());
++        assert_eq!(k.base_layout, Some('y'));
++
++        assert_eq!(parse(b"\x1B[97u").base_layout, None);
++        assert_eq!(parse(b"\x1B[97:65;2u").base_layout, None);
++    }
++
+     #[test]
+     fn test_parse_csi_u_encoded_key_code_with_types() {
+         assert_eq!(
+diff -ruN /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossterm-0.29.0/src/event.rs crossterm/src/event.rs
+--- /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossterm-0.29.0/src/event.rs	2006-07-24 04:21:28.000000000 +0300
++++ crossterm/src/event.rs	2026-10-19 12:20:44.904692893 +0300
+@@ -950,6 +950,8 @@
+     /// Only set if [`KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES`] has been enabled with
+     /// [`PushKeyboardEnhancementFlags`].
+     pub state: KeyEventState,
++    // saysdfTerminal: base-layout key: kitty base layout key; ignored by PartialEq and Hash
++    pub base_layout: Option<char>,
+ }
+ 
+ impl KeyEvent {
+@@ -959,6 +961,7 @@
+             modifiers,
+             kind: KeyEventKind::Press,
+             state: KeyEventState::empty(),
++            base_layout: None, // saysdfTerminal: base-layout key
+         }
+     }
+ 
+@@ -972,6 +975,7 @@
+             modifiers,
+             kind,
+             state: KeyEventState::empty(),
++            base_layout: None, // saysdfTerminal: base-layout key
+         }
+     }
+ 
+@@ -986,6 +990,7 @@
+             modifiers,
+             kind,
+             state,
++            base_layout: None, // saysdfTerminal: base-layout key
+         }
+     }
+ 
+@@ -1029,6 +1034,7 @@
+             modifiers: KeyModifiers::empty(),
+             kind: KeyEventKind::Press,
+             state: KeyEventState::empty(),
++            base_layout: None, // saysdfTerminal: base-layout key
+         }
+     }
+ }
+@@ -1040,12 +1046,14 @@
+             modifiers: lhs_modifiers,
+             kind: lhs_kind,
+             state: lhs_state,
++            base_layout: _, // saysdfTerminal: base-layout key
+         } = self.normalize_case();
+         let KeyEvent {
+             code: rhs_code,
+             modifiers: rhs_modifiers,
+             kind: rhs_kind,
+             state: rhs_state,
++            base_layout: _, // saysdfTerminal: base-layout key
+         } = other.normalize_case();
+         (lhs_code == rhs_code)
+             && (lhs_modifiers == rhs_modifiers)
+@@ -1063,6 +1071,7 @@
+             modifiers,
+             kind,
+             state,
++            base_layout: _, // saysdfTerminal: base-layout key
+         } = self.normalize_case();
+         code.hash(hash_state);
+         modifiers.hash(hash_state);

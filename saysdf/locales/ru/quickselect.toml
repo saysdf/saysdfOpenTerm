@@ -1,0 +1,12 @@
+# Russian catalog of saysdf.quickselect (saysdf/lua/saysdf/quickselect.lua).
+
+# Toast after "open" mode picked something that is neither a URL nor a path.
+"Copied, cannot be opened: {text}" = "скопировано, не открывается: {text}"
+
+# Menu "Tools" and command palette
+"Quick select: open" = "Quick-select: открыть"
+"Quick select: open a path or URL" = "Quick-select: открыть путь/URL"
+"Quick select: copy" = "Quick-select: скопировать"
+
+# Status bar hint for a selection (one short word)
+"Open" = "Открыть"

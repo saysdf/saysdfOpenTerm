@@ -1,0 +1,19 @@
+# Russian catalog of saysdf.help (saysdf/lua/saysdf/help.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Startup banner (lines are joined as "<key> — <label> · ...")
+"saysdfTerm is a terminal with git, SSH, databases, a monitor and a file viewer." = "saysdfTerm — терминал с git, SSH, БД, монитором и просмотром файлов."
+"menu" = "меню"
+"full help" = "справка"
+"command palette" = "палитра команд"
+"tab name" = "имя вкладки"
+"Hints at the bottom change with the context. Esc closes this." = "Подсказки внизу меняются по контексту. Esc — закрыть."
+"Turn the banner off: help = {{ banner = false }} in saysdf.setup." = "Выключить баннер: help = {{ banner = false }} в saysdf.setup."
+
+# Menu entry and status bar hint ("Help" is the hint label)
+"Full help" = "Справка"
+"Help" = "Справка"
+"saysdfTerm help (saysdf help)" = "Справка saysdfTerm (saysdf help)"
+
+# Notice when the saysdf binary is missing
+"saysdf not found; help is unavailable" = "saysdf не найден — справка недоступна"

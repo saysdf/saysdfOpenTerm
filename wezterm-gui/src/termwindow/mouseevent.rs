@@ -43,7 +43,8 @@ impl super::TermWindow {
             | UIItemType::AboveScrollThumb
             | UIItemType::BelowScrollThumb
             | UIItemType::ScrollThumb
-            | UIItemType::Split(_) => {}
+            | UIItemType::Split(_)
+            | UIItemType::SaysdfBar(_) => {} // saysdfTerminal: fork bars
         }
     }
 
@@ -54,7 +55,8 @@ impl super::TermWindow {
             | UIItemType::AboveScrollThumb
             | UIItemType::BelowScrollThumb
             | UIItemType::ScrollThumb
-            | UIItemType::Split(_) => {}
+            | UIItemType::Split(_)
+            | UIItemType::SaysdfBar(_) => {} // saysdfTerminal: fork bars
         }
     }
 
@@ -66,6 +68,12 @@ impl super::TermWindow {
         };
 
         self.current_mouse_event.replace(event.clone());
+
+        // saysdfTerminal: an open fork menu captures the mouse, a click hides the banner (menu-bar D2)
+        if self.saysdf_mouse_event(&event) {
+            context.invalidate();
+            return;
+        }
 
         let border = self.get_os_border();
 
@@ -382,6 +390,8 @@ impl super::TermWindow {
             UIItemType::CloseTab(idx) => {
                 self.mouse_event_close_tab(idx, event, context);
             }
+            // saysdfTerminal: click on fork bars (menu-bar D3)
+            UIItemType::SaysdfBar(hit) => self.saysdf_bar_mouse(hit, event, context),
         }
     }
 
@@ -453,6 +463,29 @@ impl super::TermWindow {
         .detach();
     }
 
+    // saysdfTerminal: event saysdf-tab-double-click(window, pane, tab_idx), modelled on
+    // new-tab-button-click (change tab-management, design D4); the logic is in saysdf.tabs.
+    fn saysdf_emit_tab_double_click(&mut self, tab_idx: usize) {
+        let pane = match self.get_active_pane_or_overlay() {
+            Some(pane) => MuxPane(pane.pane_id()),
+            None => return,
+        };
+        let window = GuiWin::new(self);
+        promise::spawn::spawn(config::with_lua_config_on_main_thread(move |lua| async move {
+            if let Some(lua) = lua {
+                let args = lua.pack_multi((window, pane, tab_idx))?;
+                config::lua::emit_event(&lua, ("saysdf-tab-double-click".to_string(), args))
+                    .await
+                    .map_err(|e| {
+                        log::error!("while processing saysdf-tab-double-click event: {:#}", e);
+                        e
+                    })?;
+            }
+            anyhow::Ok(())
+        }))
+        .detach();
+    }
+
     pub fn mouse_event_tab_bar(
         &mut self,
         item: TabBarItem,
@@ -463,6 +496,10 @@ impl super::TermWindow {
             WMEK::Press(MousePress::Left) => match item {
                 TabBarItem::Tab { tab_idx, .. } => {
                     self.activate_tab(tab_idx as isize).ok();
+                    // saysdfTerminal: Lua event for a double click on a tab (change tab-management, D4)
+                    if self.last_mouse_click.as_ref().map(|c| c.streak) == Some(2) {
+                        self.saysdf_emit_tab_double_click(tab_idx);
+                    }
                 }
                 TabBarItem::NewTabButton { .. } => {
                     self.do_new_tab_button_click(MousePress::Left);

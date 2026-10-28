@@ -1,0 +1,4 @@
+# Russian catalog of saysdf.util (saysdf/lua/saysdf/util.lua).
+
+# Toast / status bar message when a helper program is missing; {name} is a program name.
+"{name} not found (next to saysdfTerm or in PATH)" = "{name} не найден (рядом с saysdfTerm или в PATH)"

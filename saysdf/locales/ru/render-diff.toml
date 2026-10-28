@@ -1,0 +1,12 @@
+# Russian catalog of the saysdf-render diff and merge modules (saysdf/render/src/diff.rs, merge.rs).
+
+# Diff view messages
+"binary files differ" = "бинарные файлы различаются"
+"no differences" = "нет различий"
+# Folded context in the diff view, between ⋯ marks.
+"{n} unchanged line" = { one = "{n} неизменённых строк", few = "{n} неизменённых строк", many = "{n} неизменённых строк", other = "{n} неизменённых строк" }
+
+# Conflict marker parse errors; {line} is a line number
+"line {line}: {msg}" = "строка {line}: {msg}"
+"nested conflict marker (opened at line {open})" = "вложенный маркер конфликта (открыт в строке {open})"
+"conflict marker is not closed" = "маркер конфликта не закрыт"

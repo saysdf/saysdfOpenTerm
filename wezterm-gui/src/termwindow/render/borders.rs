@@ -138,11 +138,12 @@ impl crate::TermWindow {
     }
 
     pub fn get_os_border(&self) -> window::parameters::Border {
-        Self::get_os_border_impl(
+        // saysdfTerminal: fork bars take space as part of the window border (menu-bar D6)
+        self.saysdf_bars_border(Self::get_os_border_impl(
             &self.os_parameters,
             &self.config,
             &self.dimensions,
             &self.render_metrics,
-        )
+        ))
     }
 }

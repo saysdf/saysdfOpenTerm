@@ -1,0 +1,8 @@
+# Russian catalog of saysdf.paths (saysdf/lua/saysdf/paths.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Toasts when opening a clicked path fails; {path} is a file or folder path.
+"unknown pane folder: {path}" = "неизвестная папка панели: {path}"
+"file not found: {path}" = "файл не найден: {path}"
+"external editor is not set (paths.editor)" = "внешний редактор не задан (paths.editor)"
+"viewer is not installed (saysdf.viewer)" = "просмотрщик не установлен (saysdf.viewer)"

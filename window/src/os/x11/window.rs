@@ -881,14 +881,15 @@ impl XWindowInner {
             .dispatch(WindowEvent::AdviseDeadKeyStatus(status));
     }
 
-    pub fn dispatch_ime_text(&mut self, text: &str) {
+    // saysdfTerminal: layout-independent-keys — raw of the single press that produced the text
+    pub fn dispatch_ime_text(&mut self, text: &str, raw: Option<crate::RawKeyEvent>) {
         let key_event = KeyEvent {
             key: KeyCode::Composed(text.into()),
             leds: KeyboardLedStatus::empty(),
             modifiers: Modifiers::NONE,
             repeat_count: 1,
             key_is_down: true,
-            raw: None,
+            raw,
         }
         .normalize_shift()
         .resurface_positional_modifier_key();

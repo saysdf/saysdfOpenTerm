@@ -1,0 +1,19 @@
+# Russian catalog of saysdf.theme (saysdf/lua/saysdf/theme.lua).
+
+# Menu "View" and command palette: item names
+"Theme…" = "Тема…"
+"Light/Dark" = "Светлая/тёмная"
+"Follow system theme" = "Тема как в системе"
+
+# Command palette: item descriptions
+"Theme: pick a color scheme" = "Тема: выбрать цветовую схему"
+"Theme: light/dark" = "Тема: светлая/тёмная"
+"Theme: follow system" = "Тема: как в системе"
+
+# Theme selector (sidebar): title, hint line, fuzzy search prompt
+"Theme (color scheme)" = "Тема (цветовая схема)"
+"Enter: apply, Esc: cancel, /: search" = "Enter — применить, Esc — отмена, / — поиск"
+"Theme: " = "Тема: "
+
+# Selector item for a built-in scheme that is not in the curated selection; {name} is the scheme name
+"All · {name}" = "Все · {name}"

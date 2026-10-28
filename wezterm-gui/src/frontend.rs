@@ -121,14 +121,10 @@ impl GuiFrontEnd {
                                 }
                             };
 
-                            if show {
-                                let message = if title.is_none() { "" } else { &body };
-                                let title = title.as_ref().unwrap_or(&body);
-                                // FIXME: if notification.focus is true, we should do
-                                // something here to arrange to focus pane_id when the
-                                // notification is clicked
-                                persistent_toast_notification(title, message);
-                            }
+                            // saysdfTerminal: first the Lua event saysdf-app-notification
+                            // (policy in saysdf.notify); false skips the standard display
+                            // (change command-notifications D2)
+                            saysdf_app_notification(pane_id, window_id, show, title, body);
                         }
                     }
                 }
@@ -563,4 +559,73 @@ pub fn try_new() -> Result<Rc<GuiFrontEnd>, Error> {
         .replace(config_subscription);
 
     Ok(front_end)
+}
+
+// saysdfTerminal: OSC 9/777 -> Lua event `saysdf-app-notification(window, pane, title, body)`;
+// if the handler returns false, the standard toast is not shown (change command-notifications D2).
+fn saysdf_app_notification(
+    pane_id: mux::pane::PaneId,
+    window_id: MuxWindowId,
+    show: bool,
+    title: Option<String>,
+    body: String,
+) {
+    promise::spawn::spawn_into_main_thread(async move {
+        promise::spawn::spawn(config::with_lua_config_on_main_thread(move |lua| async move {
+            let default = match lua {
+                Some(lua) => {
+                    let window = front_end().gui_window_for_mux_window(window_id);
+                    let args = lua.pack_multi((
+                        window,
+                        mux_lua::MuxPane(pane_id),
+                        title.clone(),
+                        body.clone(),
+                    ))?;
+                    config::lua::emit_event(&lua, ("saysdf-app-notification".to_string(), args))
+                        .await
+                        .unwrap_or_else(|e| {
+                            log::error!("while processing saysdf-app-notification event: {:#}", e);
+                            true
+                        })
+                }
+                None => true,
+            };
+            if default && show {
+                let message = if title.is_none() { "" } else { &body };
+                let title = title.as_ref().unwrap_or(&body);
+                show_with_activation(
+                    ToastNotification {
+                        title: title.to_string(),
+                        message: message.to_string(),
+                        url: None,
+                        timeout: None,
+                    },
+                    saysdf_focus_on_activate(pane_id),
+                );
+            }
+            Ok(())
+        }))
+        .detach();
+    })
+    .detach();
+}
+
+// saysdfTerminal: toast click callback - brings the window to the front and focuses the tab and pane
+// (Windows; change command-notifications D4). Called from the toast thread.
+pub fn saysdf_focus_on_activate(pane_id: mux::pane::PaneId) -> ActivationCallback {
+    Box::new(move || {
+        promise::spawn::spawn_into_main_thread(async move {
+            let mux = Mux::get();
+            if let Err(err) = mux.focus_pane_and_containing_tab(pane_id) {
+                log::warn!("toast activation: pane {pane_id}: {err:#}");
+                return;
+            }
+            if let Some((_domain, window_id, _tab_id)) = mux.resolve_pane_id(pane_id) {
+                if let Some(gui) = front_end().gui_window_for_mux_window(window_id) {
+                    gui.window.focus();
+                }
+            }
+        })
+        .detach();
+    })
 }

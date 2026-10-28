@@ -8,7 +8,9 @@ Wezterm checks regularly if there is a new stable version available
 on github, and shows a simple UI to let you know about the update
 (See [show_update_window](show_update_window.md) to control this UI).
 
-By default it is checked once every 24 hours.
+**saysdfTerminal:** update checks are disabled by default; set
+`check_for_updates = true` to opt in. When enabled, it is checked once
+every 24 hours.
 
 NOTE that it doesn't automatically download the release.
 No data are collected for the wezterm project as part of this.

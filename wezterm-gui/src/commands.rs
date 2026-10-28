@@ -139,7 +139,8 @@ impl CommandDef {
             }
         }
 
-        keys
+        // saysdfTerminal: layout-independent-keys — default bindings follow the physical key in Physical mode
+        config::saysdf_physical_bindings(config.key_map_preference, keys)
     }
 
     /// Produces the list of default key assignments and actions.

@@ -407,6 +407,16 @@ impl Pane for QuickSelectOverlay {
         Ok(())
     }
 
+    // saysdfTerminal: layout-independent-keys — label letter from the physical key (D4)
+    fn saysdf_key_down_phys(
+        &self,
+        key: KeyCode,
+        mods: KeyModifiers,
+        phys: Option<config::saysdf_keys::Key>,
+    ) -> anyhow::Result<()> {
+        self.key_down(super::saysdf_overlay_keys::label_key(key, phys), mods)
+    }
+
     fn key_down(&self, key: KeyCode, mods: KeyModifiers) -> anyhow::Result<()> {
         let mods = mods.remove_positional_mods();
         match (key, mods) {

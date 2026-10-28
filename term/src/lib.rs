@@ -123,6 +123,8 @@ pub struct SemanticZone {
 }
 
 pub mod color;
+// saysdfTerminal: prompt-suggest — fork module reading the typed prompt input from screen cells
+pub mod saysdf_input;
 
 #[cfg(test)]
 mod test;

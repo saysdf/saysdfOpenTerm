@@ -85,13 +85,21 @@ impl UserData for GuiWin {
         });
         methods.add_method(
             "toast_notification",
-            |_, _, (title, message, url, timeout): (String, String, Option<String>, Option<u64>)| {
-                wezterm_toast_notification::show(ToastNotification {
+            // saysdfTerminal: 5th argument pane_id - clicking the toast focuses the pane (command-notifications D4)
+            |_, _, (title, message, url, timeout, pane_id): (String, String, Option<String>, Option<u64>, Option<mux::pane::PaneId>)| {
+                let notif = ToastNotification {
                     title,
                     message,
                     url,
                     timeout: timeout.map(std::time::Duration::from_millis)
-                });
+                };
+                match pane_id {
+                    Some(pane_id) => wezterm_toast_notification::show_with_activation(
+                        notif,
+                        crate::frontend::saysdf_focus_on_activate(pane_id),
+                    ),
+                    None => wezterm_toast_notification::show(notif),
+                }
                 Ok(())
             },
         );
@@ -104,6 +112,51 @@ impl UserData for GuiWin {
         });
         methods.add_method("set_left_status", |_, this, status: String| {
             this.window.notify(TermWindowNotif::SetLeftStatus(status));
+            Ok(())
+        });
+        // saysdfTerminal: fork bars and menu (menu-bar D1, D3); parsing is in saysdf_bars.rs
+        methods.add_method(
+            "saysdf_set_bar",
+            |_, this, (kind, spec): (String, mlua::Value)| {
+                use crate::termwindow::saysdf_bars;
+                let kind = saysdf_bars::parse_kind(&kind).map_err(mlua::Error::external)?;
+                let spec = saysdf_bars::parse_spec(kind, spec)?;
+                this.window.notify(TermWindowNotif::Apply(Box::new(move |tw| {
+                    tw.saysdf_set_bar(kind, spec)
+                })));
+                Ok(())
+            },
+        );
+        // saysdfTerminal: pane header mode (pane-header D2/D4)
+        methods.add_method("saysdf_set_pane_header", |_, this, mode: String| {
+            let mode = crate::termwindow::saysdf_pane_header::parse_mode(&mode)
+                .map_err(mlua::Error::external)?;
+            this.window.notify(TermWindowNotif::Apply(Box::new(move |tw| {
+                tw.saysdf_set_pane_header(mode)
+            })));
+            Ok(())
+        });
+        // saysdfTerminal: close/zoom a specific pane by id (pane-header, review L2)
+        methods.add_method(
+            "saysdf_pane_action",
+            |_, this, (pane, action, confirm): (UserDataRef<MuxPane>, String, Option<bool>)| {
+                let action = crate::termwindow::saysdf_pane_header::parse_pane_action(
+                    &action,
+                    confirm.unwrap_or(true),
+                )
+                .map_err(mlua::Error::external)?;
+                let pane_id = pane.0;
+                this.window.notify(TermWindowNotif::Apply(Box::new(move |tw| {
+                    tw.saysdf_pane_action(pane_id, action);
+                })));
+                Ok(())
+            },
+        );
+        methods.add_method("saysdf_open_menu", |_, this, which: Option<mlua::Value>| {
+            let which = crate::termwindow::saysdf_bars::parse_menu_selector(which)?;
+            this.window.notify(TermWindowNotif::Apply(Box::new(move |tw| {
+                tw.saysdf_open_menu(which)
+            })));
             Ok(())
         });
         methods.add_async_method("get_dimensions", |_, this, _: ()| async move {

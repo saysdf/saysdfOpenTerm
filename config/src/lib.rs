@@ -31,6 +31,8 @@ mod font;
 mod frontend;
 pub mod keyassignment;
 mod keys;
+// saysdfTerminal: layout-independent-keys — physical normalization of bindings (fork code)
+mod saysdf_bindings;
 pub mod lua;
 pub mod meta;
 mod scheme_data;
@@ -54,6 +56,8 @@ pub use exec_domain::*;
 pub use font::*;
 pub use frontend::*;
 pub use keys::*;
+// saysdfTerminal: layout-independent-keys
+pub use saysdf_bindings::*;
 pub use serial::*;
 pub use ssh::*;
 pub use terminal::*;
@@ -383,9 +387,10 @@ pub fn create_user_owned_dirs(p: &Path) -> anyhow::Result<()> {
 }
 
 fn xdg_config_home() -> PathBuf {
-    match std::env::var_os("XDG_CONFIG_HOME").map(|s| PathBuf::from(s).join("wezterm")) {
+    // saysdfTerminal: rebrand
+    match std::env::var_os("XDG_CONFIG_HOME").map(|s| PathBuf::from(s).join(saysdf_identity::APP_NAME)) {
         Some(p) => p,
-        None => HOME_DIR.join(".config").join("wezterm"),
+        None => HOME_DIR.join(".config").join(saysdf_identity::APP_NAME), // saysdfTerminal: rebrand
     }
 }
 
@@ -395,7 +400,8 @@ fn config_dirs() -> Vec<PathBuf> {
 
     #[cfg(unix)]
     if let Some(d) = std::env::var_os("XDG_CONFIG_DIRS") {
-        dirs.extend(std::env::split_paths(&d).map(|s| PathBuf::from(s).join("wezterm")));
+        // saysdfTerminal: rebrand
+        dirs.extend(std::env::split_paths(&d).map(|s| PathBuf::from(s).join(saysdf_identity::APP_NAME)));
     }
 
     dirs

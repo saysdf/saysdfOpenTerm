@@ -1,0 +1,8 @@
+# Russian catalog of the saysdf-render Markdown preview (saysdf/render/src/markdown/layout.rs).
+
+# Image caption suffix; {note} is one of the two messages below
+" — {note}" = " — {note}"
+# Caption note of a remote image (not loaded, by design)
+"remote image, not loaded" = "удалённая, не загружается"
+# Caption note of a local image that cannot be shown
+"not found or format not recognized" = "не найдена или формат не распознан"

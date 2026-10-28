@@ -1,0 +1,19 @@
+[package]
+name = "saysdf-render"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: shared TUI rendering logic (sanitize, source, highlight, doc)"
+
+[dependencies]
+saysdf-i18n = {path="../i18n"}
+ratatui.workspace = true
+syntect.workspace = true
+unicode-width = "0.2"
+pulldown-cmark = {version="0.13", default-features=false}
+similar = "2"
+
+[dev-dependencies]
+# saysdf_i18n::testing: tests look up in English (or the language of use_lang), per thread
+saysdf-i18n = {path="../i18n", features=["testing"]}
+tempfile.workspace = true

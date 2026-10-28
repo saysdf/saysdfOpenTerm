@@ -176,6 +176,23 @@ pub trait TerminalConfiguration: Downcast + std::fmt::Debug + Send + Sync {
         false
     }
 
+    // saysdfTerminal: inline-graphics — configurable image limits and kitty transfer media
+    /// Max width*height (pixels) of an inline image, checked before decoding.
+    fn max_image_pixels(&self) -> u32 {
+        7680 * 4320
+    }
+
+    /// Max bytes of stored kitty image data; over it, new images are refused.
+    fn kitty_image_memory_budget(&self) -> usize {
+        320 * 1024 * 1024
+    }
+
+    /// Allow kitty `t=f`/`t=t`/`t=s` (read a local file / shared memory named by the
+    /// program output). Off: only direct data (`t=d`) is accepted.
+    fn allow_kitty_file_transfer(&self) -> bool {
+        false
+    }
+
     fn enable_kitty_keyboard(&self) -> bool {
         false
     }

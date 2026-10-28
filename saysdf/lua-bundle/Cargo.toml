@@ -1,0 +1,15 @@
+[package]
+name = "saysdf-lua-bundle"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: Lua modules from saysdf/lua compiled into the binary"
+
+[dependencies]
+saysdf-i18n = {path="../i18n"}
+# Same features as in config: a single mlua instance in the tree
+mlua = {workspace=true, features=["vendored", "lua54", "async", "send", "serialize"]}
+
+[dev-dependencies]
+regex.workspace = true
+tempfile.workspace = true

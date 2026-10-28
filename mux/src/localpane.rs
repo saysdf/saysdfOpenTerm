@@ -223,6 +223,11 @@ impl Pane for LocalPane {
         self.terminal.lock().user_vars().clone()
     }
 
+    // saysdfTerminal: prompt-suggest — typed input read from the terminal state (D2)
+    fn saysdf_prompt_input(&self) -> Option<wezterm_term::saysdf_input::PromptInput> {
+        wezterm_term::saysdf_input::prompt_input(&self.terminal.lock())
+    }
+
     fn exit_behavior(&self) -> Option<ExitBehavior> {
         // If we are ssh, and we've not yet fully connected,
         // then override exit_behavior so that we can show
@@ -450,7 +455,8 @@ impl Pane for LocalPane {
         let title = self.terminal.lock().get_title().to_string();
         // If the title is the default pane title, then try to spice
         // things up a bit by returning the process basename instead
-        if title == "wezterm" {
+        // saysdfTerminal: rebrand (default title set in term/src/terminalstate/mod.rs)
+        if title == saysdf_identity::APP_NAME {
             if let Some(proc_name) = self.get_foreground_process_name(CachePolicy::AllowStale) {
                 let proc_name = std::path::Path::new(&proc_name);
                 if let Some(name) = proc_name.file_name() {

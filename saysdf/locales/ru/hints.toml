@@ -1,0 +1,5 @@
+# Russian catalog of the saysdf-hints crate (saysdf/hints/src).
+
+# git errors of command completion and prompt suggestions
+"git not found in PATH" = "git не найден в PATH"
+"git did not respond in time" = "git не ответил за отведённое время"

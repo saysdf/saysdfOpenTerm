@@ -11,7 +11,12 @@ fn main() {
             .ok()
             .and_then(|cwd| cwd.parent().map(|p| p.to_path_buf()))
             .unwrap();
-        let exe_output_dir = repo_dir.join("target").join(profile);
+        // saysdfTerminal: honor CARGO_TARGET_DIR (shared build cache for
+        // agent worktrees) so conpty.dll lands next to the built exe
+        let exe_output_dir = std::env::var_os("CARGO_TARGET_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| repo_dir.join("target"))
+            .join(profile);
         let windows_dir = repo_dir.join("assets").join("windows");
 
         let conhost_dir = windows_dir.join("conhost");
@@ -30,36 +35,37 @@ fn main() {
             }
         }
 
-        let angle_dir = windows_dir.join("angle");
-        for name in &["libEGL.dll", "libGLESv2.dll"] {
-            let dest_name = exe_output_dir.join(name);
-            let src_name = angle_dir.join(name);
+        // saysdfTerminal: unsigned prebuilt ANGLE and Mesa DLLs are no
+        // longer bundled; only the Microsoft-signed conpty is copied.
 
-            if !dest_name.exists() {
-                std::fs::copy(&src_name, &dest_name)
-                    .context(format!(
-                        "copy {} -> {}",
-                        src_name.display(),
-                        dest_name.display()
-                    ))
-                    .unwrap();
-            }
-        }
-
+        // saysdfTerminal: shell integration scripts next to the exe
+        // (<exe_dir>/shell-integration, change shell-integration D2).
         {
-            let dest_mesa = exe_output_dir.join("mesa");
-            let _ = std::fs::create_dir(&dest_mesa);
-            let dest_name = dest_mesa.join("opengl32.dll");
-            let src_name = windows_dir.join("mesa").join("opengl32.dll");
-            if !dest_name.exists() {
-                std::fs::copy(&src_name, &dest_name)
-                    .context(format!(
-                        "copy {} -> {}",
-                        src_name.display(),
-                        dest_name.display()
-                    ))
-                    .unwrap();
+            fn copy_tree(src: &Path, dest: &Path) -> std::io::Result<()> {
+                std::fs::create_dir_all(dest)?;
+                for entry in std::fs::read_dir(src)? {
+                    let entry = entry?;
+                    let to = dest.join(entry.file_name());
+                    if entry.file_type()?.is_dir() {
+                        copy_tree(&entry.path(), &to)?;
+                    } else {
+                        std::fs::copy(entry.path(), to)?;
+                    }
+                }
+                Ok(())
             }
+            let src = repo_dir.join("saysdf").join("shell-integration");
+            let wezterm_sh = repo_dir
+                .join("assets")
+                .join("shell-integration")
+                .join("wezterm.sh");
+            println!("cargo:rerun-if-changed={}", src.display());
+            println!("cargo:rerun-if-changed={}", wezterm_sh.display());
+            let dest = exe_output_dir.join("shell-integration");
+            copy_tree(&src, &dest)
+                .and_then(|_| std::fs::copy(&wezterm_sh, dest.join("wezterm.sh")).map(|_| ()))
+                .context(format!("copy shell integration -> {}", dest.display()))
+                .unwrap();
         }
 
         // If a file named `.tag` is present, we'll take its contents for the

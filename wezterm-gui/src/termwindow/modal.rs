@@ -20,6 +20,16 @@ pub trait Modal: Downcast {
         mods: KeyModifiers,
         term_window: &mut TermWindow,
     ) -> anyhow::Result<bool>;
+    // saysdfTerminal: layout-independent-keys — modals learn the physical key (D5)
+    fn saysdf_key_down_phys(
+        &self,
+        key: KeyCode,
+        mods: KeyModifiers,
+        _phys: Option<config::saysdf_keys::Key>,
+        term_window: &mut TermWindow,
+    ) -> anyhow::Result<bool> {
+        self.key_down(key, mods, term_window)
+    }
     fn computed_element(
         &self,
         term_window: &mut TermWindow,

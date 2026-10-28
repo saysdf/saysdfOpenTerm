@@ -9,6 +9,11 @@ publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# saysdfTerminal: rebrand — user-visible binary name (design D3)
+[[bin]]
+name = "saysdfTerm"
+path = "src/main.rs"
+
 [features]
 default = ["vendored-fonts", "wayland"]
 wayland = ["window/wayland"]
@@ -34,6 +39,13 @@ cc.workspace = true
 embed-resource.workspace = true
 
 [dependencies]
+# saysdfTerminal: rebrand
+saysdf-identity = { path = "../saysdf/identity" }
+# saysdfTerminal: prompt-suggest — suggestion engine and local host check (design D3, D9)
+saysdf-hints = { path = "../saysdf/hints" }
+# saysdfTerminal: i18n — shared invisible/bidi character set of the bars (security review 2026-10-21-i18n M1)
+saysdf-i18n = { path = "../saysdf/i18n" }
+hostname.workspace = true
 anyhow.workspace = true
 bitflags.workspace = true
 bytemuck.workspace = true

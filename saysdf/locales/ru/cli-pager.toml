@@ -1,0 +1,32 @@
+# Russian catalog of the shared TUI engine: pager, external editor, form
+# (saysdf/cli/src/pager.rs, editor.rs, form.rs).
+
+# ---- Pager status line (shown until the next key press) ----
+"watch unavailable: polling every 2 s" = "вотч недоступен: опрос раз в 2 с"
+# {line} is a 1-based line number, {n} the number of lines in the file.
+"line {line} is beyond the end of the file ({n} lines)" = "строка {line} за пределами файла ({n} строк)"
+"a line number is expected" = "ожидается номер строки"
+"no query: / to search" = "нет запроса: / — поиск"
+# {query} is the text the user searched for.
+"not found: {query}" = "не найдено: {query}"
+"search is unavailable for this view" = "поиск недоступен для этого вида"
+"reloaded" = "перечитано"
+"file deleted" = "файл удалён"
+# {error} is the system error text.
+"read error: {error}" = "ошибка чтения: {error}"
+"no editor set (--editor-cmd)" = "редактор не задан (--editor-cmd)"
+
+# ---- External editor errors (shown in the pager status line) ----
+# {error} is the JSON parser error.
+"--editor-cmd: a JSON array of strings is expected: {error}" = "--editor-cmd: ожидается JSON-массив строк: {error}"
+"--editor-cmd: empty command" = "--editor-cmd: пустая команда"
+# {program} is the editor executable, {error} the system error text.
+"cannot start {program}: {error}" = "не удалось запустить {program}: {error}"
+# {status} is the process exit status.
+"the editor exited with {status}" = "редактор завершился с {status}"
+
+# ---- Form ----
+# Hint at the bottom of a form; keep the leading space, keys stay as they are.
+" Tab/Shift+Tab field, Enter save, Esc cancel" = " Tab/Shift+Tab — поле, Enter — сохранить, Esc — отмена"
+# Message screen; {text} is the message, the second paragraph is the hint.
+"{text}\n\nAny key to close" = "{text}\n\nЛюбая клавиша — выход"

@@ -1,0 +1,21 @@
+# Russian catalog of saysdf.ssh (saysdf/lua/saysdf/ssh.lua).
+
+# Picker row (last item) that opens the "add connection" form.
+"+ Add connection…" = "+ Добавить подключение…"
+# Same row when ~/.ssh/config has no hosts.
+"+ Add connection… (no hosts in ~/.ssh/config)" = "+ Добавить подключение… (в ~/.ssh/config нет хостов)"
+
+# Printed in the tab after ssh fails; %s is the exit code (a printf placeholder, keep it once).
+"[ssh: exit code %s — press Enter to close the tab]" = "[ssh: код %s — Enter закроет вкладку]"
+
+# Toasts
+"ssh not found in PATH (Windows: OpenSSH Client component); or backend = 'domain'" = "ssh не найден в PATH (Windows: компонент OpenSSH Client); или backend = 'domain'"
+# {path} is a file path, {err} the error text.
+"cannot write {path}: {err}" = "не записан {path}: {err}"
+
+# Sidebar title of the connection picker.
+"SSH connections" = "SSH-подключения"
+
+# Command palette and menu "File"
+"SSH: connect…" = "SSH: подключиться…"
+"SSH: add connection…" = "SSH: добавить подключение…"

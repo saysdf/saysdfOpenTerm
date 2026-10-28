@@ -1,0 +1,17 @@
+# Russian catalog of saysdf.shell (saysdf/lua/saysdf/shell.lua).
+
+# Toast when Ctrl+Shift+O finds no output zone.
+"No output from the last command" = "Нет вывода последней команды"
+
+# Menu "Tools" and command palette
+"Copy command output" = "Скопировать вывод команды"
+"Shell: copy the output of the last command" = "Шелл: скопировать вывод последней команды"
+
+# Status bar hint for the shell context (one short word)
+"Output" = "Вывод"
+
+# Menu "View" and command palette
+"Previous prompt" = "Предыдущий промпт"
+"Shell: go to the previous prompt" = "Шелл: к предыдущему промпту"
+"Next prompt" = "Следующий промпт"
+"Shell: go to the next prompt" = "Шелл: к следующему промпту"

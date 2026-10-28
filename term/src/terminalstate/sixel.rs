@@ -10,7 +10,8 @@ impl TerminalState {
     pub(crate) fn sixel(&mut self, sixel: Box<Sixel>) {
         let (width, height) = sixel.dimensions();
 
-        if let Err(err) = check_image_dimensions(width, height) {
+        // saysdfTerminal: inline-graphics — limit from config
+        if let Err(err) = check_image_dimensions(width, height, self.config.max_image_pixels()) {
             log::error!("{}", err);
             return;
         }

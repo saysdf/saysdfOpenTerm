@@ -25,6 +25,56 @@ pub struct KittyImageState {
     id_to_data: HashMap<u32, Arc<ImageData>>,
     placements: HashMap<(u32, Option<u32>), PlacementInfo>,
     used_memory: usize,
+    // saysdfTerminal: parser-fuzzing — total raw bytes of pending m=1 chunks
+    accumulated_bytes: usize,
+}
+
+// saysdfTerminal: parser-fuzzing — ceiling for inflated o=z data and for the sum of
+// m=1 chunks: MAX_IMAGE_SIZE (100 MB, see check_image_dimensions) * 4, below 512 MB.
+pub(crate) const KITTY_MAX_DATA_BYTES: usize = 100_000_000 * 4;
+
+// saysdfTerminal: parser-fuzzing — zlib inflate that refuses output above `limit` (zlib bomb)
+fn kitty_inflate_limited(data: &[u8], limit: usize) -> anyhow::Result<Vec<u8>> {
+    miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(data, limit)
+        .map_err(|e| anyhow::anyhow!("decompressing data (limit {} bytes): {:?}", limit, e))
+}
+
+// saysdfTerminal: parser-fuzzing — size of a pending chunk and the running-sum check
+fn kitty_chunk_len(img: &KittyImage) -> usize {
+    match img {
+        KittyImage::TransmitData { transmit, .. }
+        | KittyImage::TransmitDataAndDisplay { transmit, .. } => match &transmit.data {
+            KittyImageData::Direct(s) => s.len(),
+            KittyImageData::DirectBin(b) => b.len(),
+            _ => 0,
+        },
+        _ => 0,
+    }
+}
+
+fn kitty_check_accumulated(total: usize, add: usize, limit: usize) -> anyhow::Result<usize> {
+    match total.checked_add(add) {
+        Some(sum) if sum <= limit => Ok(sum),
+        _ => anyhow::bail!("kitty chunked data exceeds {} bytes, dropping it", limit),
+    }
+}
+
+// saysdfTerminal: inline-graphics — reply to a transfer medium that is not allowed
+pub(crate) const KITTY_FILE_TRANSFER_DENIED: &str = "EPERM:file transfer disabled";
+
+// saysdfTerminal: inline-graphics — the transmit of a request that names a file/shm medium
+fn kitty_non_direct_transmit(img: &KittyImage) -> Option<&KittyImageTransmit> {
+    let transmit = match img {
+        KittyImage::Query { transmit }
+        | KittyImage::TransmitData { transmit, .. }
+        | KittyImage::TransmitDataAndDisplay { transmit, .. }
+        | KittyImage::TransmitFrame { transmit, .. } => transmit,
+        _ => return None,
+    };
+    match transmit.data {
+        KittyImageData::Direct(_) | KittyImageData::DirectBin(_) => None,
+        _ => Some(transmit),
+    }
 }
 
 impl KittyImageState {
@@ -34,17 +84,34 @@ impl KittyImageState {
         }
     }
 
-    fn record_id_to_data(&mut self, image_id: u32, data: Arc<ImageData>) {
+    // saysdfTerminal: inline-graphics — configurable budget; the new image is refused if it
+    // does not fit after pruning unreferenced images (placed images are kept).
+    fn record_id_to_data(
+        &mut self,
+        image_id: u32,
+        data: Arc<ImageData>,
+        budget: usize,
+    ) -> anyhow::Result<()> {
         if image_id != 0 {
             self.remove_data_for_id(image_id);
         }
-        self.prune_unreferenced();
-        self.used_memory += data.len();
+        let len = data.len();
+        self.prune_unreferenced(budget.saturating_sub(len));
+        if self.used_memory.saturating_add(len) > budget {
+            anyhow::bail!(
+                "kitty image {} of {} bytes refused: images use {} of kitty_image_memory_budget {}",
+                image_id,
+                len,
+                self.used_memory,
+                budget
+            );
+        }
+        self.used_memory += len;
         self.id_to_data.insert(image_id, data);
+        Ok(())
     }
 
-    fn prune_unreferenced(&mut self) {
-        let budget = 320 * 1024 * 1024; // FIXME: make this configurable
+    fn prune_unreferenced(&mut self, budget: usize) {
         if self.used_memory > budget {
             let referenced: HashSet<u32> = self.placements.keys().map(|(k, _)| *k).collect();
             let target = self.used_memory - budget;
@@ -171,12 +238,47 @@ impl TerminalState {
         }
     }
 
+    // saysdfTerminal: parser-fuzzing — push an m=1 chunk, bounding the sum of chunks
+    fn kitty_accumulate(&mut self, img: KittyImage) -> anyhow::Result<()> {
+        match kitty_check_accumulated(
+            self.kitty_img.accumulated_bytes,
+            kitty_chunk_len(&img),
+            KITTY_MAX_DATA_BYTES,
+        ) {
+            Ok(sum) => {
+                self.kitty_img.accumulated_bytes = sum;
+                self.kitty_img.accumulator.push(img);
+                Ok(())
+            }
+            Err(err) => {
+                self.kitty_img.accumulator.clear();
+                self.kitty_img.accumulated_bytes = 0;
+                Err(err)
+            }
+        }
+    }
+
     pub(crate) fn kitty_img(&mut self, img: KittyImage) -> anyhow::Result<()> {
         log::trace!("{:?}", img);
         if !self.config.enable_kitty_graphics() {
             return Ok(());
         }
         let verbosity = img.verbosity();
+        // saysdfTerminal: inline-graphics — t=f/t=t/t=s read local files/shm named by program
+        // output; off by default. The reply is the same whatever the path, so it reveals nothing.
+        if !self.config.allow_kitty_file_transfer() {
+            if let Some(transmit) = kitty_non_direct_transmit(&img) {
+                let (id, no) = (transmit.image_id, transmit.image_number);
+                self.kitty_send_response(
+                    verbosity,
+                    false,
+                    id,
+                    no,
+                    KITTY_FILE_TRANSFER_DENIED.to_string(),
+                );
+                anyhow::bail!("kitty file/shm transfer is disabled (allow_kitty_file_transfer)");
+            }
+        }
         match img {
             KittyImage::Query { transmit } => match transmit.data.load_data() {
                 Ok(_) => {
@@ -208,7 +310,7 @@ impl TerminalState {
                     verbosity,
                 };
                 if more_data_follows {
-                    self.kitty_img.accumulator.push(img);
+                    self.kitty_accumulate(img)?; // saysdfTerminal: parser-fuzzing
                 } else {
                     self.kitty_img_inner(img)?;
                 }
@@ -225,7 +327,7 @@ impl TerminalState {
                     verbosity,
                 };
                 if more_data_follows {
-                    self.kitty_img.accumulator.push(img);
+                    self.kitty_accumulate(img)?; // saysdfTerminal: parser-fuzzing
                 } else {
                     self.kitty_img_inner(img)?;
                 }
@@ -769,10 +871,8 @@ impl TerminalState {
 
         let data = match transmit.compression {
             KittyImageCompression::None => data,
-            KittyImageCompression::Deflate => {
-                miniz_oxide::inflate::decompress_to_vec_zlib(&data)
-                    .map_err(|e| anyhow::anyhow!("decompressing data: {:?}", e))?
-            }
+            // saysdfTerminal: parser-fuzzing — bounded inflate instead of decompress_to_vec_zlib
+            KittyImageCompression::Deflate => kitty_inflate_limited(&data, KITTY_MAX_DATA_BYTES)?,
         };
 
         let img = match transmit.format {
@@ -784,7 +884,8 @@ impl TerminalState {
                     }
                 };
 
-                check_image_dimensions(width, height)?;
+                // saysdfTerminal: inline-graphics — limit from config
+                check_image_dimensions(width, height, self.config.max_image_pixels())?;
 
                 let data = match transmit.format {
                     Some(KittyImageFormat::Rgb) => {
@@ -811,7 +912,8 @@ impl TerminalState {
             }
             Some(KittyImageFormat::Png) => {
                 let info = dimensions(&data)?;
-                check_image_dimensions(info.width, info.height)?;
+                // saysdfTerminal: inline-graphics — limit from config
+                check_image_dimensions(info.width, info.height, self.config.max_image_pixels())?;
                 let decoded = image::load_from_memory(&data).context("decode png")?;
                 let (width, height) = decoded.dimensions();
                 let data = decoded.into_rgba8().into_vec();
@@ -833,7 +935,9 @@ impl TerminalState {
         let img = self
             .raw_image_to_image_data(img)
             .context("storing image data")?;
-        self.kitty_img.record_id_to_data(image_id, img);
+        // saysdfTerminal: inline-graphics — budget from config; refuse when over it
+        let budget = self.config.kitty_image_memory_budget();
+        self.kitty_img.record_id_to_data(image_id, img, budget)?;
 
         if image_number.is_some() {
             self.kitty_send_response(
@@ -857,6 +961,7 @@ impl TerminalState {
             let place;
             let final_verbosity = img.verbosity();
 
+            self.kitty_img.accumulated_bytes = 0; // saysdfTerminal: parser-fuzzing
             self.kitty_img.accumulator.push(img);
 
             let mut empty_data = KittyImageData::Direct(String::new());
@@ -976,4 +1081,32 @@ where
         }
     }
     Ok(())
+}
+
+// saysdfTerminal: parser-fuzzing — regression tests for the kitty data limits
+#[cfg(test)]
+mod saysdf_limit_tests {
+    use super::*;
+
+    #[test]
+    fn inflate_rejects_zlib_bomb_above_limit() {
+        let plain = vec![0u8; 64 * 1024];
+        let bomb = miniz_oxide::deflate::compress_to_vec_zlib(&plain, 10);
+        assert!(bomb.len() < 1024, "test data should be a high-ratio bomb");
+        assert!(kitty_inflate_limited(&bomb, plain.len() - 1).is_err());
+        assert_eq!(kitty_inflate_limited(&bomb, plain.len()).unwrap(), plain);
+        assert!(kitty_inflate_limited(b"not zlib", 1024).is_err());
+    }
+
+    #[test]
+    fn limit_is_within_512mb() {
+        assert!(KITTY_MAX_DATA_BYTES <= 512 * 1024 * 1024);
+    }
+
+    #[test]
+    fn accumulated_chunks_are_bounded() {
+        assert_eq!(kitty_check_accumulated(10, 5, 15).unwrap(), 15);
+        assert!(kitty_check_accumulated(10, 6, 15).is_err());
+        assert!(kitty_check_accumulated(usize::MAX, 1, usize::MAX).is_err());
+    }
 }

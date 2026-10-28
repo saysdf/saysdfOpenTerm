@@ -267,7 +267,8 @@ fn setup_pretty() -> (LevelFilter, Logger) {
         .and_then(|p| p.file_name().map(|s| s.to_string_lossy().to_string()))
         .unwrap_or_else(|| "wezterm".to_string());
 
-    if base_name.contains("gui") {
+    // saysdfTerminal: after rebranding the exe is called saysdfTerm, without "gui"
+    if base_name.contains("gui") || base_name.contains(saysdf_identity::GUI_EXE) {
         // Only tidy up logs when the gui process is starting.
         // rationale: `wezterm cli` commands should have as low startup
         // overhead as possible

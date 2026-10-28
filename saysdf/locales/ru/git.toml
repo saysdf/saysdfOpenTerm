@@ -1,0 +1,78 @@
+# Russian catalog of saysdf.git (saysdf/lua/saysdf/git.lua).
+
+# Push confirmation text (several lines); {branch}, {target}, {remote}, {path} are names, {n} and {sha} numbers.
+"HEAD is detached: push cancelled" = "HEAD отсоединён: push отменён"
+"{remote}/{branch} (new upstream)" = "{remote}/{branch} (новый upstream)"
+"Push {branch} → {target}?" = "Push {branch} → {target}?"
+"Commits to push: {n}" = "Коммитов к отправке: {n}"
+"Warning: branch is behind by {n} (push may be rejected)" = "Внимание: ветка отстаёт на {n} (push может быть отклонён)"
+"Warning: submodule {path} — commit {sha} is not pushed" = "Внимание: сабмодуль {path} — коммит {sha} не запушен"
+
+# Confirmation list (InputSelector), the "no" choice
+"Cancel" = "Отмена"
+
+# Toasts
+"No staged changes (git add or Commit all)" = "нет проиндексированных изменений (git add или Commit all)"
+
+# Input prompts for the commit message
+"Commit message" = "Сообщение коммита"
+
+# Confirmation title and its "yes" choice
+"Commit all (-a): commit ALL changes to tracked files?" = "Commit all (-a): закоммитить ВСЕ изменения отслеживаемых файлов?"
+"Yes, commit -a" = "Да, commit -a"
+"Commit message (commit -a)" = "Сообщение коммита (commit -a)"
+
+# Toasts
+"Could not get the repository status" = "не удалось получить статус репозитория"
+
+# Push confirmation button, also a menu entry name
+"Push" = "Push"
+
+# Toast
+"Could not get the branch list" = "не удалось получить список веток"
+
+# Sidebar selector title for branch checkout
+"Checkout" = "Checkout"
+
+# Confirmation when the working tree is dirty; {branch} is a branch name; "Switch" is the "yes" button.
+"Working tree is not clean. Switch to {branch}?" = "Рабочее дерево не чистое. Переключиться на {branch}?"
+"Switch" = "Переключиться"
+
+# Submodule states shown in brackets after the path
+"ok" = "ok"
+"moved" = "сдвинут"
+"not initialized" = "не инициализирован"
+"conflict" = "конфликт"
+
+# Submodules selector: first entry and title
+"Update submodules: submodule update --init --recursive" = "Обновить все: submodule update --init --recursive"
+"Submodules (select to open in a new pane)" = "Сабмодули (выбор — открыть в новой панели)"
+
+# Toast; the install command stays as is.
+"lazygit is not installed; install: winget install JesseDuffield.lazygit (or scoop install lazygit)" = "lazygit не установлен; установить: winget install JesseDuffield.lazygit (или scoop install lazygit)"
+
+# Git menu entries and command palette ("Git: <entry>")
+"Diff" = "Diff"
+"Diff (staged)" = "Diff (staged)"
+"Resolve conflicts (mergetool)" = "Resolve conflicts (mergetool)"
+"Commit (staged)" = "Commit (staged)"
+"Commit all (-a)…" = "Commit all (-a)…"
+"Push… (with confirmation)" = "Push… (с подтверждением)"
+"Pull" = "Pull"
+"Checkout branch" = "Checkout branch"
+"Submodules" = "Submodules"
+"Open lazygit/gitui" = "Open lazygit/gitui"
+
+# Toast
+"Pane is not in a git repository (or the domain is not local)" = "панель не в git-репозитории (или домен не локальный)"
+
+# Sidebar title of the git menu and the status bar hint (one short word)
+"Git" = "Git"
+
+# Menu "Git" and command palette
+"Git: menu…" = "Git: меню…"
+"Git menu…" = "Git-меню…"
+"Git: {action}" = "Git: {action}"
+
+# Status bar hint for the git context (one short word)
+"Commit" = "Commit"

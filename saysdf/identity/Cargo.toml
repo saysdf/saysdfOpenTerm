@@ -1,0 +1,8 @@
+[package]
+name = "saysdf-identity"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: user-visible names, paths and binaries in one place"
+
+[dependencies]

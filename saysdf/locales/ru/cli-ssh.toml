@@ -1,0 +1,81 @@
+# Russian catalog of `saysdf ssh add` (saysdf/cli/src/ssh/*.rs, cmd/ssh.rs).
+# The add-connection form validation messages are safety-relevant: keep their meaning exactly.
+
+# ---- Form field validation (shown under the field; the field names alias, host, user... stay as ids) ----
+"required field" = "обязательное поле"
+"line breaks and control characters are not allowed" = "переводы строк и управляющие символы запрещены"
+"only Latin letters, digits and . _ - (no spaces or *?!)" = "только латиница, цифры и . _ - (без пробелов и *?!)"
+"port must be a number from 1 to 65535" = "порт — число от 1 до 65535"
+"a number from 1 to 65535" = "число 1..65535"
+"no quotes" = "без кавычек"
+# HostName and User are ssh config keywords, keep them.
+"HostName must not contain \"@\" — enter the login in the User field (user@host is split automatically)" = "в HostName не должно быть «@» — логин вводится в поле User (user@host разносится автоматически)"
+"HostName must not contain spaces — enter only the address, not the rest of the ssh command" = "в HostName не должно быть пробелов — введите только адрес, без остальной команды ssh"
+"HostName may only be a host name, IPv4 or IPv6 (no $, %, quotes or backslash)" = "в HostName допустимы только имя хоста, IPv4 или IPv6 (без $, %, кавычек и обратного слэша)"
+"HostName may only contain Latin letters, digits, . - _ and \":\" for IPv6" = "в HostName допустимы только латиница, цифры, . - _ и «:» для IPv6"
+"User must not contain \"@\"" = "в User не должно быть «@»"
+"User must not contain $ or % — it is the login name on the server (for example deploy), not a variable or a path" = "в User не должно быть $ и % — это имя пользователя на сервере (например deploy), а не переменная или путь"
+"User must not contain spaces or quotes" = "в User не должно быть пробелов и кавычек"
+
+# ---- Errors ----
+# {alias} is the connection alias.
+"alias \"{alias}\" is already in ssh config" = "алиас «{alias}» уже есть в ssh config"
+# {path} is ~/.ssh/config; {line} is the Include line to type, keep it as is.
+"{path} is a symbolic link, not modified; add this as the first line by hand: {line}" = "{path} — символическая ссылка, не изменяю; добавьте первой строкой вручную: {line}"
+"a JSON object was expected" = "ожидался JSON-объект"
+
+# ---- Pasted ssh command parsing ----
+"unclosed quote in the ssh command" = "незакрытая кавычка в команде ssh"
+# {flag} is an ssh option such as -i.
+"no value after {flag}" = "после {flag} нет значения"
+# {port} is the text that was entered.
+"port \"{port}\" must be a number from 1 to 65535" = "порт «{port}» должен быть числом 1..65535"
+"extra words after the server address (a remote command is not supported)" = "после адреса сервера есть лишние слова (удалённая команда не поддерживается)"
+"no server address in the command (expected ssh -i <key> user@host)" = "в команде не найден адрес сервера (ожидается ssh -i <ключ> user@host)"
+
+# ---- Notes after normalizing the input ----
+# {login}/{old} are user names.
+"HostName contained the login \"{login}\"; the User field (\"{old}\") is kept, the login from HostName is dropped" = "HostName содержал логин «{login}»; поле User («{old}») оставлено, логин из HostName отброшен"
+# {value} is the entered text; {user}/{host} are its parts.
+"\"{value}\" was split: User = {user}, HostName = {host}" = "«{value}» разнесено: User = {user}, HostName = {host}"
+"IdentityFile expanded: {path}" = "IdentityFile раскрыт: {path}"
+"warning: key file not found: {path} — check the path (the entry was saved)" = "предупреждение: файл ключа не найден: {path} — проверьте путь (запись сделана)"
+"fields filled from the ssh command (it was not run)" = "поля заполнены из команды ssh (она не выполнялась)"
+
+# ---- Command line messages ----
+"Include already present" = "Include уже есть"
+"Include added, backup: {path}" = "Include добавлен, бэкап: {path}"
+"created ~/.ssh/config with the Include" = "создан ~/.ssh/config с Include"
+# {line} is the Include line, keep it as is.
+"Include not added: `ssh {alias}` will not see the host until ~/.ssh/config starts with the line \"{line}\"" = "Include не добавлен: `ssh {alias}` не увидит хост, пока в начале ~/.ssh/config нет строки «{line}»"
+"saysdf ssh add: home folder not found (HOME/USERPROFILE)" = "saysdf ssh add: не найдена домашняя папка (HOME/USERPROFILE)"
+"saysdf ssh add: metadata path not found (--meta-file)" = "saysdf ssh add: не найден путь метаданных (--meta-file)"
+"saysdf ssh add: --existing-file {error}" = "saysdf ssh add: --existing-file {error}"
+"saysdf ssh add: {error}" = "saysdf ssh add: {error}"
+"added Host {alias} to {path}" = "добавлен Host {alias} в {path}"
+
+# ---- Add-connection form: labels and hints (HostName, User, Port, IdentityFile stay as ssh keywords) ----
+"Alias" = "Алиас"
+# `<alias>` is a literal placeholder of the command, translate it.
+"name for `ssh <alias>`, for example build" = "имя для `ssh <алиас>`, например build"
+"address or IP" = "адрес или IP"
+"optional" = "необязательно"
+"~/.ssh/id_ed25519 (passwords are not stored)" = "~/.ssh/id_ed25519 (пароли не хранятся)"
+"Title" = "Название"
+"in the saysdfTerm list" = "в списке saysdfTerm"
+"Description" = "Описание"
+"second column of the list" = "вторая колонка списка"
+"Group" = "Группа"
+"Color" = "Цвет"
+"red, blue, #rrggbb…" = "red, blue, #rrggbb…"
+"ssh command" = "Команда ssh"
+"paste ssh -i \"~/.ssh/key\" user@host -p 22 — the fields will be filled in" = "вставьте ssh -i \"~/.ssh/key\" user@host -p 22 — поля заполнятся"
+"New SSH connection" = "Новое SSH-подключение"
+
+# ---- Form messages ----
+# {notes} is a list of the changes made, separated by "; ".
+"Fields filled in automatically ({notes}). Check them and save again." = "Поля заполнены автоматически ({notes}). Проверьте и сохраните ещё раз."
+"Write error: {error}" = "Ошибка записи: {error}"
+"Added Host {alias} to {path}" = "Добавлен Host {alias} в {path}"
+# Confirmation dialog; {line} is the Include line, {path} the ssh config. Keep the line break.
+"Add the line \"{line}\" to the start of {path}?\nA backup will be made; the rest of the content is not changed." = "Добавить строку «{line}» в начало {path}?\nБудет сделан бэкап; остальное содержимое не меняется."

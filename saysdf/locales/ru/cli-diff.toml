@@ -1,0 +1,73 @@
+# Russian catalog of `saysdf diff` and `saysdf merge` (saysdf/cli/src/cmd/diff.rs, merge.rs).
+# The "no differences" text of the diff view lives in render-diff.toml.
+
+# ---- diff: status line (shown until the next key press) ----
+# Initial status; {n} is the number of files. Keys stay as they are.
+"files: {n}; Tab layout, ]/[ hunk, }}/{{ file, z fold, v select, s/u stage/unstage" = "файлов: {n}; Tab вид, ]/[ ханк, }}/{{ файл, z свёртка, v выделить, s/u stage/unstage"
+"stage/unstage is only available in git mode without revisions" = "stage/unstage — только в git-режиме без ревизий"
+"unstage works in the --staged view" = "unstage — в виде --staged"
+"stage works in the working tree view (without --staged)" = "stage — в виде рабочего дерева (без --staged)"
+"the cursor is not on a hunk" = "курсор не на ханке"
+"no changes in the selection" = "в выделении нет изменений"
+"hunk removed from the index" = "ханк убран из индекса"
+"hunk added to the index" = "ханк добавлен в индекс"
+# {error} is the error text.
+"reload failed: {error}" = "перечитать не удалось: {error}"
+"reloaded" = "перечитано"
+"no more hunks" = "ханк: дальше нет"
+"no more files" = "файл: дальше нет"
+"folding on" = "свёртка вкл"
+"folding off" = "свёртка выкл"
+"only +/- lines can be selected" = "выделяются только строки +/-"
+
+# ---- diff: command line messages ----
+"saysdf diff: two files or two folders are required" = "saysdf diff: нужно два файла или две папки"
+"saysdf diff: not a git repository (or give two files/folders)" = "saysdf diff: не git-репозиторий (или укажите два файла/папки)"
+"saysdf diff: terminal: {error}" = "saysdf diff: терминал: {error}"
+
+# ---- --install-git-tool (shared by diff and merge) ----
+# {scope} is the git option, --local or --global.
+"These keys will be written (git config {scope}):" = "Будут записаны ключи (git config {scope}):"
+# Questions are followed by the [y/N] hint.
+"Write them?" = "Записать?"
+"cancelled" = "отменено"
+# {default_key} is a git config key (diff.tool or merge.tool).
+"Make saysdf the default tool ({default_key})?" = "Сделать saysdf инструментом по умолчанию ({default_key})?"
+"done" = "готово"
+
+# ---- merge: block headers ----
+# Header of a conflict block, shown after "┌ ".
+"CONFLICT" = "КОНФЛИКТ"
+"resolved: ours" = "решено: ours"
+"resolved: theirs" = "решено: theirs"
+"resolved: ours+theirs" = "решено: ours+theirs"
+"resolved: theirs+ours" = "решено: theirs+ours"
+"resolved: base" = "решено: base"
+"resolved: edited" = "решено: правка"
+"auto: ours" = "авто: ours"
+"auto: theirs" = "авто: theirs"
+"auto: identical" = "авто: одинаково"
+"├ result:" = "├ результат:"
+# Placeholder of an unresolved block; letters are keys and stay as they are.
+"  (unresolved: o ours, t theirs, b ours+theirs, B theirs+ours, a base, E edit)" = "  (не решено: o ours, t theirs, b ours+theirs, B theirs+ours, a base, E правка)"
+
+# ---- merge: status line ----
+# {n} is the number of unresolved conflicts.
+"unresolved: {n}" = "нерешённых: {n}"
+# {status} is the "unresolved: {n}" text.
+"{status}; ]/[ conflict, o/t/b/B/a accept, x reset, E edit, w save, q quit" = "{status}; ]/[ конфликт, o/t/b/B/a принять, x сброс, E правка, w сохранить, q выход"
+"the cursor is not on a changed block (]/[ to jump)" = "курсор не на изменённом блоке (]/[ — переход)"
+"the cursor is not on a changed block" = "курсор не на изменённом блоке"
+"temporary file: {error}" = "временный файл: {error}"
+"terminal: {error}" = "терминал: {error}"
+"reading the edit: {error}" = "чтение правки: {error}"
+"unresolved: {n}; press w again to save with markers" = "нерешённых: {n}; w ещё раз — сохранить с маркерами"
+"saved: {path}" = "сохранено: {path}"
+"saved: {path} (with markers: {n})" = "сохранено: {path} (с маркерами: {n})"
+"save failed: {error}" = "сохранение: {error}"
+"no more conflicts below; {status}" = "дальше конфликтов нет; {status}"
+"no more conflicts above; {status}" = "выше конфликтов нет; {status}"
+
+# ---- merge: command line ----
+"expected 1 file with markers or 4: BASE LOCAL REMOTE MERGED" = "ожидается 1 файл с маркерами или 4: BASE LOCAL REMOTE MERGED"
+"saysdf merge: terminal: {error}" = "saysdf merge: терминал: {error}"

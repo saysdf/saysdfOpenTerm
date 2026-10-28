@@ -1711,6 +1711,11 @@ impl KeyEvent {
     pub fn encode_kitty(&self, flags: KittyKeyboardFlags) -> String {
         use KeyCode::*;
 
+        // saysdfTerminal: layout-independent-keys — IME/composed text is sent as text, never dropped
+        if let (Composed(text), true) = (&self.key, self.key_is_down) {
+            return text.clone();
+        }
+
         if !flags.contains(KittyKeyboardFlags::REPORT_EVENT_TYPES) && !self.key_is_down {
             return String::new();
         }
@@ -2196,7 +2201,8 @@ impl FromDynamic for IntegratedTitleButtonStyle {
 /// layout stuff. For the moment, we'll do the slightly gross
 /// thing and make an assumption that a US ANSI layout is in
 /// use; this function encodes that mapping.
-fn us_layout_unshift(c: char) -> char {
+// saysdfTerminal: layout-independent-keys — used by saysdf-keys
+pub fn us_layout_unshift(c: char) -> char {
     match c {
         '!' => '1',
         '@' => '2',
@@ -3270,6 +3276,65 @@ mod test {
             }
             .encode_kitty(flags),
             "\x1b[27;1:3u".to_string()
+        );
+    }
+
+    // saysdfTerminal: layout-independent-keys — IME text and Cyrillic keys under kitty flags
+    fn cyrillic_event(key: KeyCode, key_is_down: bool, phys: Option<PhysKeyCode>) -> KeyEvent {
+        KeyEvent {
+            key,
+            modifiers: Modifiers::NONE,
+            leds: KeyboardLedStatus::empty(),
+            repeat_count: 1,
+            key_is_down,
+            raw: phys.map(|phys| RawKeyEvent {
+                key: KeyCode::Physical(phys),
+                modifiers: Modifiers::NONE,
+                handled: Handled::new(),
+                key_is_down,
+                raw_code: 0,
+                leds: KeyboardLedStatus::empty(),
+                phys_code: Some(phys),
+                #[cfg(windows)]
+                scan_code: 0,
+                repeat_count: 1,
+            }),
+            #[cfg(windows)]
+            win32_uni_char: None,
+        }
+    }
+
+    #[test]
+    fn composed_text_is_sent_as_text_under_kitty_flags() {
+        for bits in 0..32u16 {
+            let flags = KittyKeyboardFlags::from_bits_truncate(bits);
+            for phys in [None, Some(PhysKeyCode::D)] {
+                let down = cyrillic_event(KeyCode::Composed("в".to_string()), true, phys);
+                assert_eq!(down.encode_kitty(flags), "в", "flags={bits} phys={phys:?}");
+                let up = cyrillic_event(KeyCode::Composed("в".to_string()), false, phys);
+                assert_eq!(up.encode_kitty(flags), "", "flags={bits} phys={phys:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn cyrillic_char_is_never_dropped_on_press() {
+        let disambiguate = KittyKeyboardFlags::DISAMBIGUATE_ESCAPE_CODES;
+        let press = cyrillic_event(KeyCode::Char('в'), true, Some(PhysKeyCode::D));
+        assert_eq!(press.encode_kitty(disambiguate), "в");
+        assert_eq!(
+            press.encode_kitty(
+                disambiguate
+                    | KittyKeyboardFlags::REPORT_ALTERNATE_KEYS
+                    | KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+            ),
+            "\x1b[1074::100;1u"
+        );
+        let release = cyrillic_event(KeyCode::Char('в'), false, Some(PhysKeyCode::D));
+        assert_eq!(release.encode_kitty(disambiguate), "");
+        assert_eq!(
+            release.encode_kitty(disambiguate | KittyKeyboardFlags::REPORT_EVENT_TYPES),
+            "\x1b[1074;1:3u"
         );
     }
 }

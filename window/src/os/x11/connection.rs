@@ -105,6 +105,8 @@ pub struct XConnection {
     pub(crate) gl_connection: RefCell<Option<Rc<crate::egl::GlConnection>>>,
     pub(crate) ime: RefCell<std::pin::Pin<Box<xcb_imdkit::ImeClient>>>,
     pub(crate) ime_process_event_result: RefCell<anyhow::Result<()>>,
+    // saysdfTerminal: layout-independent-keys — last key press handed to the IME
+    pub(crate) saysdf_ime_press: super::keyboard::saysdf_ime::ImePressTracker,
     pub(crate) has_randr: bool,
     pub(crate) atom_names: RefCell<HashMap<Atom, String>>,
     pub(crate) supported: RefCell<HashSet<Atom>>,
@@ -531,9 +533,21 @@ impl XConnection {
         // check for previous errors produced by the IME forward_event callback
         self.ime_process_event_result.replace(Ok(()))?;
 
-        if config::configuration().use_ime && self.ime.borrow_mut().process_event(event) {
+        // saysdfTerminal: layout-independent-keys — remember the press the IME may commit text for
+        let use_ime = config::configuration().use_ime;
+        if let (true, xcb::Event::X(xcb::x::Event::KeyPress(press))) = (use_ime, event) {
+            self.saysdf_ime_press.remember(
+                self.keyboard
+                    .saysdf_ime_press(press.event().resource_id(), press),
+            );
+        }
+        if use_ime && self.ime.borrow_mut().process_event(event) {
             self.ime_process_event_result.replace(Ok(()))
         } else {
+            // saysdfTerminal: layout-independent-keys — not consumed by the IME
+            if let xcb::Event::X(xcb::x::Event::KeyPress(_)) = event {
+                self.saysdf_ime_press.clear();
+            }
             self.process_xcb_event(event)
         }
     }
@@ -864,6 +878,7 @@ impl XConnection {
             gl_connection: RefCell::new(None),
             ime: RefCell::new(ime),
             ime_process_event_result: RefCell::new(Ok(())),
+            saysdf_ime_press: Default::default(),
             has_randr,
             atom_names: RefCell::new(HashMap::new()),
             supported: RefCell::new(HashSet::new()),
@@ -878,7 +893,11 @@ impl XConnection {
                 .set_commit_string_cb(move |window_id, input| {
                     if let Some(window) = conn.window_by_id(window_id) {
                         let mut inner = window.lock().unwrap();
-                        inner.dispatch_ime_text(input);
+                        // saysdfTerminal: layout-independent-keys — keep the physical key of the press
+                        let raw = conn
+                            .saysdf_ime_press
+                            .take_for_commit(window_id.resource_id(), input);
+                        inner.dispatch_ime_text(input, raw);
                     }
                 });
         }
@@ -892,6 +911,8 @@ impl XConnection {
                         let mut inner = window.lock().unwrap();
 
                         let text = info.text();
+                        // saysdfTerminal: layout-independent-keys — composition in progress
+                        conn.saysdf_ime_press.clear();
                         let status = DeadKeyStatus::Composing(text);
                         inner.dispatch_ime_compose_status(status);
                     }

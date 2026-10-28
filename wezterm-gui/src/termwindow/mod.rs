@@ -81,6 +81,11 @@ pub mod paneselect;
 mod prevcursor;
 pub mod render;
 pub mod resize;
+mod saysdf_close; // saysdfTerminal: close-confirmation D2, D3
+pub mod saysdf_bars; // saysdfTerminal: menu/status/banner bars (menu-bar D1)
+pub mod saysdf_menu; // saysdfTerminal: bar drop-down menu (menu-bar D2)
+pub mod saysdf_pane_header; // saysdfTerminal: pane headers (pane-header D1)
+pub mod saysdf_suggest; // saysdfTerminal: prompt-suggest - background computation of suggestions (D3)
 mod selection;
 pub mod spawn;
 pub mod webgpu;
@@ -160,6 +165,7 @@ pub enum UIItemType {
     ScrollThumb,
     BelowScrollThumb,
     Split(PositionedSplit),
+    SaysdfBar(saysdf_bars::SaysdfBarHit), // saysdfTerminal: click on fork bars (menu-bar D1)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -446,6 +452,8 @@ pub struct TermWindow {
     dragging: Option<(UIItem, MouseEvent)>,
 
     modal: RefCell<Option<Rc<dyn Modal>>>,
+    saysdf_bars: saysdf_bars::BarsState, // saysdfTerminal: fork bars (menu-bar D1)
+    pub saysdf_suggest: saysdf_suggest::Suggest, // saysdfTerminal: prompt-suggest - suggestion state (D3)
 
     event_states: HashMap<String, EventState>,
     pub current_event: Option<Value>,
@@ -514,8 +522,9 @@ impl TermWindow {
                     return;
                 }
                 let window = self.window.clone().unwrap();
+                let message = saysdf_close::window_message(mux_window_id); // saysdfTerminal: dialog text (close-confirmation D3)
                 let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
-                    confirm_close_window(term, mux_window_id, window, tab_id)
+                    confirm_close_window(term, mux_window_id, window, tab_id, message)
                 });
                 self.assign_overlay(tab.tab_id(), overlay);
                 promise::spawn::spawn(future).detach();
@@ -792,6 +801,8 @@ impl TermWindow {
             is_click_to_focus_window: false,
             key_table_state: KeyTableState::default(),
             modal: RefCell::new(None),
+            saysdf_bars: Default::default(), // saysdfTerminal: fork bars (menu-bar D1)
+            saysdf_suggest: Default::default(), // saysdfTerminal: prompt-suggest (D3)
             opengl_info: None,
         };
 
@@ -823,7 +834,8 @@ impl TermWindow {
 
         let window = Window::new_window(
             &get_window_class(),
-            "wezterm",
+            // saysdfTerminal: rebrand
+            saysdf_identity::APP_NAME,
             geometry,
             Some(&config),
             Rc::clone(&fontconfig),
@@ -1287,6 +1299,7 @@ impl TermWindow {
                     }
                 }
                 MuxNotification::PaneOutput(pane_id) => {
+                    self.saysdf_suggest_output(pane_id); // saysdfTerminal: prompt-suggest - debounce and request suggestions (D3)
                     self.mux_pane_output_event(pane_id);
                 }
                 MuxNotification::WindowInvalidated(_) => {
@@ -1838,6 +1851,7 @@ impl TermWindow {
             &self.render_metrics,
         );
 
+        self.saysdf_close_menu(); // saysdfTerminal: fork menu - snapshot of the old bar, close on reload
         self.invalidate_modal();
         self.emit_window_event("window-config-reloaded", None);
     }
@@ -1989,6 +2003,8 @@ impl TermWindow {
             None => false,
         };
 
+        // saysdfTerminal: tab bar colors follow the color scheme if tab_bar is not set (change theme-switcher)
+        let saysdf_tab_colors = crate::termwindow::saysdf_bars::effective_tab_bar(&self.config);
         let new_tab_bar = TabBarState::new(
             self.dimensions.pixel_width / self.render_metrics.cell_size.width as usize,
             if hovering_in_tab_bar {
@@ -1998,7 +2014,7 @@ impl TermWindow {
             },
             &tabs,
             &panes,
-            self.config.resolved_palette.tab_bar.as_ref(),
+            saysdf_tab_colors.as_ref(), // saysdfTerminal: was resolved_palette.tab_bar
             &self.config,
             &self.left_status,
             &self.right_status,
@@ -2128,6 +2144,7 @@ impl TermWindow {
                     ((cursor.y + pos.top as isize - top).max(0)
                         * self.render_metrics.cell_size.height)
                         .add(tab_bar_height as isize)
+                        .add(self.get_os_border().top.get() as isize) // saysdfTerminal: border and fork menu bar (IME candidate window near the cursor)
                         .add(padding_top as isize),
                 ),
                 self.render_metrics.cell_size,
@@ -2804,6 +2821,11 @@ impl TermWindow {
                         let con = Connection::get().expect("call on gui thread");
                         con.terminate_message_loop();
                     }
+                    // saysdfTerminal: Quit without a dialog if no window would ask (close-confirmation D2)
+                    WindowCloseConfirmation::AlwaysPrompt if saysdf_close::quit_without_prompt() => {
+                        let con = Connection::get().expect("call on gui thread");
+                        con.terminate_message_loop();
+                    }
                     WindowCloseConfirmation::AlwaysPrompt => {
                         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
                             Some(tab) => tab,
@@ -2811,8 +2833,9 @@ impl TermWindow {
                         };
 
                         let window = self.window.clone().unwrap();
+                        let message = saysdf_close::quit_message(); // saysdfTerminal: dialog text (close-confirmation D3)
                         let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
-                            confirm_quit_program(term, window, tab_id)
+                            confirm_quit_program(term, window, tab_id, message)
                         });
                         self.assign_overlay(tab.tab_id(), overlay);
                         promise::spawn::spawn(future).detach();
@@ -3225,8 +3248,9 @@ impl TermWindow {
         let pane_id = pane.pane_id();
         if confirm && !pane.can_close_without_prompting(CloseReason::Pane) {
             let window = self.window.clone().unwrap();
+            let message = saysdf_close::pane_message(&pane); // saysdfTerminal: dialog text (close-confirmation D3)
             let (overlay, future) = start_overlay_pane(self, &pane, move |pane_id, term| {
-                confirm_close_pane(pane_id, term, mux_window_id, window)
+                confirm_close_pane(pane_id, term, mux_window_id, window, message)
             });
             self.assign_overlay_for_pane(pane_id, overlay);
             promise::spawn::spawn(future).detach();
@@ -3256,8 +3280,9 @@ impl TermWindow {
             }
 
             let window = self.window.clone().unwrap();
+            let message = saysdf_close::tab_message(&tab); // saysdfTerminal: dialog text (close-confirmation D3)
             let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
-                confirm_close_tab(tab_id, term, mux_window_id, window)
+                confirm_close_tab(tab_id, term, mux_window_id, window, message)
             });
             self.assign_overlay(tab_id, overlay);
             promise::spawn::spawn(future).detach();
@@ -3276,8 +3301,9 @@ impl TermWindow {
         let mux_window_id = self.mux_window_id;
         if confirm && !tab.can_close_without_prompting(CloseReason::Tab) {
             let window = self.window.clone().unwrap();
+            let message = saysdf_close::tab_message(&tab); // saysdfTerminal: dialog text (close-confirmation D3)
             let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
-                confirm_close_tab(tab_id, term, mux_window_id, window)
+                confirm_close_tab(tab_id, term, mux_window_id, window, message)
             });
             self.assign_overlay(tab_id, overlay);
             promise::spawn::spawn(future).detach();
@@ -3516,6 +3542,7 @@ impl TermWindow {
                 pixel_width: size.cols as usize * self.render_metrics.cell_size.width as usize,
                 pixel_height: size.rows as usize * self.render_metrics.cell_size.height as usize,
                 pane,
+                saysdf_header_rows: 0, // saysdfTerminal: pane-header - tab overlay without a header
             }]
         } else {
             let mut panes = tab.iter_panes();

@@ -1,0 +1,28 @@
+# Russian catalog of saysdf.workspaces (saysdf/lua/saysdf/workspaces.lua).
+
+# Trust prompt for commands from the project's .saysdf/workspace.json (InputSelector title);
+# {commands} is a "; "-separated list of "folder: command" entries. Nothing runs until the user agrees.
+"Project commands: {commands}" = "Команды проекта: {commands}"
+# Choices of that prompt: approve exactly this command list (asked again if it changes), shells only, cancel.
+"Run (remember for this command list)" = "Запустить (запомнить для этого списка команд)"
+"Shells only" = "Только шеллы"
+"Cancel" = "Отмена"
+
+# Workspace list (sidebar selector): title and entries; {name} is a workspace name.
+"Workspaces" = "Рабочие пространства"
+"{name}  (open)" = "{name}  (открыто)"
+"{name}  (saved)" = "{name}  (сохранено)"
+
+# Restore prompt at startup; {names} is a comma-separated list of workspace names.
+"Restore previous session ({names})?" = "Восстановить прошлую сессию ({names})?"
+"Restore (without running commands)" = "Восстановить (без запуска команд)"
+"No" = "Нет"
+
+# Menu "File" and command palette
+"Workspaces…" = "Рабочие пространства…"
+# Status bar hint label, one short word.
+"Projects" = "Проекты"
+"Workspaces: list" = "Рабочие пространства: список"
+"Workspaces: save current" = "Рабочие пространства: сохранить текущее"
+"Workspaces: allow/forbid commands of the current one" = "Рабочие пространства: разрешить/запретить команды текущего"
+"Workspaces: open the project of the current folder (.saysdf/workspace.json)" = "Рабочие пространства: открыть проект текущей папки (.saysdf/workspace.json)"

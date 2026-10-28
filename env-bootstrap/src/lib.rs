@@ -88,6 +88,8 @@ pub fn fixup_appimage() {
         fn clean_wezterm_config_env() {
             std::env::remove_var("WEZTERM_CONFIG_FILE");
             std::env::remove_var("WEZTERM_CONFIG_DIR");
+            std::env::remove_var(saysdf_identity::CONFIG_FILE_ENV); // saysdfTerminal: rebrand
+            std::env::remove_var(saysdf_identity::CONFIG_DIR_ENV); // saysdfTerminal: rebrand
         }
 
         if config::HOME_DIR.starts_with(append_extra_file_name_suffix(&appimage, ".home")) {

@@ -13,6 +13,7 @@ pub mod debug;
 pub mod launcher;
 pub mod prompt;
 pub mod quickselect;
+pub mod saysdf_overlay_keys; // saysdfTerminal: layout-independent-keys — physical keys in overlays (D4)
 pub mod selector;
 
 pub use confirm_close_pane::{

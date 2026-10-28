@@ -5,7 +5,7 @@ use std::io::Error as IoError;
 use std::os::raw::c_void;
 use std::ptr::{null, null_mut};
 use winapi::shared::windef::*;
-use winapi::um::libloaderapi::{GetModuleHandleW, *};
+use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::wingdi::*;
 use winapi::um::winuser::*;
 
@@ -92,20 +92,8 @@ impl WglWrapper {
     }
 
     fn create() -> anyhow::Result<Self> {
-        if crate::configuration::prefer_swrast() {
-            let mesa_dir = std::env::current_exe()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .join("mesa");
-            let mesa_dir = wide_string(mesa_dir.to_str().unwrap());
-
-            unsafe {
-                AddDllDirectory(mesa_dir.as_ptr());
-                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-            }
-        }
-
+        // saysdfTerminal: the bundled Mesa software renderer was removed,
+        // so this always loads the system opengl32.dll.
         let lib = unsafe { libloading::Library::new("opengl32.dll") }.map_err(|e| {
             log::error!("{:?}", e);
             e

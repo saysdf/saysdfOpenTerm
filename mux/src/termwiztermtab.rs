@@ -30,6 +30,8 @@ use termwiz::surface::{Change, Line, SequenceNo};
 use termwiz::terminal::{ScreenSize, TerminalWaker};
 use termwiz::Context;
 use url::Url;
+// saysdfTerminal: layout-independent-keys — physical key travels with its InputEvent (D4)
+use config::saysdf_keys::Key as SaysdfKey;
 use wezterm_term::color::ColorPalette;
 use wezterm_term::{
     KeyCode, KeyModifiers, MouseEvent, StableRowIndex, TerminalConfiguration, TerminalSize,
@@ -89,7 +91,7 @@ pub struct TermWizTerminalPane {
     pane_id: PaneId,
     domain_id: DomainId,
     terminal: Mutex<wezterm_term::Terminal>,
-    input_tx: Sender<InputEvent>,
+    input_tx: Sender<(InputEvent, Option<SaysdfKey>)>, // saysdfTerminal: layout-independent-keys
     dead: Mutex<bool>,
     writer: Mutex<Vec<u8>>,
     render_rx: FileDescriptor,
@@ -99,7 +101,7 @@ impl TermWizTerminalPane {
     fn new(
         domain_id: DomainId,
         size: TerminalSize,
-        input_tx: Sender<InputEvent>,
+        input_tx: Sender<(InputEvent, Option<SaysdfKey>)>, // saysdfTerminal: layout-independent-keys
         render_rx: FileDescriptor,
         term_config: Option<Arc<dyn TerminalConfiguration + Send + Sync>>,
     ) -> Self {
@@ -184,7 +186,7 @@ impl Pane for TermWizTerminalPane {
 
     fn send_paste(&self, text: &str) -> anyhow::Result<()> {
         let paste = InputEvent::Paste(text.to_string());
-        self.input_tx.send(paste)?;
+        self.input_tx.send((paste, None))?; // saysdfTerminal: layout-independent-keys
         Ok(())
     }
 
@@ -205,10 +207,13 @@ impl Pane for TermWizTerminalPane {
     }
 
     fn resize(&self, size: TerminalSize) -> anyhow::Result<()> {
-        self.input_tx.send(InputEvent::Resized {
-            rows: size.rows as usize,
-            cols: size.cols as usize,
-        })?;
+        self.input_tx.send((
+            InputEvent::Resized {
+                rows: size.rows as usize,
+                cols: size.cols as usize,
+            },
+            None, // saysdfTerminal: layout-independent-keys
+        ))?;
 
         self.terminal.lock().resize(size);
 
@@ -216,11 +221,21 @@ impl Pane for TermWizTerminalPane {
     }
 
     fn key_down(&self, key: KeyCode, modifiers: KeyModifiers) -> anyhow::Result<()> {
+        self.saysdf_key_down_phys(key, modifiers, None) // saysdfTerminal: layout-independent-keys
+    }
+
+    // saysdfTerminal: layout-independent-keys — key_down with the physical key (D4)
+    fn saysdf_key_down_phys(
+        &self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+        phys: Option<SaysdfKey>,
+    ) -> anyhow::Result<()> {
         let event = InputEvent::Key(KeyEvent {
             key,
             modifiers: modifiers.remove_positional_mods(),
         });
-        if let Err(e) = self.input_tx.send(event) {
+        if let Err(e) = self.input_tx.send((event, phys)) {
             *self.dead.lock() = true;
             return Err(e.into());
         }
@@ -252,7 +267,7 @@ impl Pane for TermWizTerminalPane {
             mouse_buttons,
             modifiers: event.modifiers,
         });
-        if let Err(e) = self.input_tx.send(event) {
+        if let Err(e) = self.input_tx.send((event, None)) { // saysdfTerminal: layout-independent-keys
             *self.dead.lock() = true;
             return Err(e.into());
         }
@@ -313,14 +328,20 @@ impl Pane for TermWizTerminalPane {
 
 pub struct TermWizTerminal {
     render_tx: TermWizTerminalRenderTty,
-    input_rx: Receiver<InputEvent>,
+    input_rx: Receiver<(InputEvent, Option<SaysdfKey>)>, // saysdfTerminal: layout-independent-keys
     renderer: TerminfoRenderer,
     grab_mouse: bool,
+    last_key_phys: Option<SaysdfKey>, // saysdfTerminal: layout-independent-keys
 }
 
 impl TermWizTerminal {
     pub fn no_grab_mouse_in_raw_mode(&mut self) {
         self.grab_mouse = false;
+    }
+
+    // saysdfTerminal: layout-independent-keys — physical key of the last polled event (D4)
+    pub fn last_key_phys(&self) -> Option<SaysdfKey> {
+        self.last_key_phys
     }
 }
 
@@ -348,7 +369,10 @@ impl TermWizTerminal {
     fn do_input_poll(&mut self, wait: Option<Duration>) -> termwiz::Result<Option<InputEvent>> {
         if let Some(timeout) = wait {
             match self.input_rx.recv_timeout(timeout) {
-                Ok(input) => Ok(Some(input)),
+                Ok((input, phys)) => {
+                    self.last_key_phys = phys; // saysdfTerminal: layout-independent-keys
+                    Ok(Some(input))
+                }
                 Err(err) => {
                     if err.is_timeout() {
                         Ok(None)
@@ -358,7 +382,8 @@ impl TermWizTerminal {
                 }
             }
         } else {
-            let input = self.input_rx.recv().context("receive from channel")?;
+            let (input, phys) = self.input_rx.recv().context("receive from channel")?;
+            self.last_key_phys = phys; // saysdfTerminal: layout-independent-keys
             Ok(Some(input))
         }
     }
@@ -472,6 +497,7 @@ pub fn allocate(
         input_rx,
         renderer,
         grab_mouse: true,
+        last_key_phys: None, // saysdfTerminal: layout-independent-keys
     };
 
     let domain_id = 0;
@@ -521,10 +547,11 @@ pub async fn run<
         input_rx,
         renderer,
         grab_mouse: true,
+        last_key_phys: None, // saysdfTerminal: layout-independent-keys
     };
 
     async fn register_tab(
-        input_tx: Sender<InputEvent>,
+        input_tx: Sender<(InputEvent, Option<SaysdfKey>)>, // saysdfTerminal: layout-independent-keys
         render_rx: FileDescriptor,
         size: TerminalSize,
         window_id: Option<WindowId>,
@@ -589,3 +616,8 @@ pub async fn run<
 
     result
 }
+
+// saysdfTerminal: layout-independent-keys — tests live in fork code
+#[cfg(test)]
+#[path = "saysdf_termwiz_phys_tests.rs"]
+mod saysdf_termwiz_phys_tests;

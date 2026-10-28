@@ -1,0 +1,29 @@
+[package]
+name = "saysdf-i18n"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: UI localization (translation catalogs, language detection, lookups)"
+
+[features]
+# saysdf_i18n::testing: per-thread language override for tests of dependent crates
+# (enable it in their [dev-dependencies] only, never in [dependencies])
+testing = []
+
+[dependencies]
+saysdf-identity = {path="../identity"}
+# Menu accelerators in catalogs are validated with the menu bar's own key grammar
+saysdf-keys = {path="../keys"}
+toml.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = {workspace=true, features=["Win32_Foundation", "Win32_Globalization"]}
+
+# Preferred languages of the user (CFLocaleCopyPreferredLanguages); already used by upstream
+# (window, wezterm-font), no new crate in Cargo.lock
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation.workspace = true
+
+[dev-dependencies]
+regex.workspace = true
+tempfile.workspace = true

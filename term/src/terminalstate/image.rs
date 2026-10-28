@@ -118,6 +118,17 @@ impl TerminalState {
             draw_height
         );
 
+        // saysdfTerminal: inline-graphics — explicit kitty c=/r= are bounded before use
+        let (max_cols, max_rows) = max_image_cells(physical_cols, physical_rows);
+        anyhow::ensure!(
+            params.columns.unwrap_or(0) <= max_cols && params.rows.unwrap_or(0) <= max_rows,
+            "refusing to display image of {:?}x{:?} cells: max is {}x{} cells",
+            params.columns,
+            params.rows,
+            max_cols,
+            max_rows
+        );
+
         let (fullcells_width, remainder_width_cell, x_delta_divisor) = params
             .columns
             .map(|cols| {
@@ -164,6 +175,16 @@ impl TerminalState {
 
         let width_in_cells = fullcells_width + one_or_zero::<usize>(remainder_width_cell > 0);
         let height_in_cells = fullcells_height + one_or_zero::<usize>(remainder_height_cell > 0);
+        // saysdfTerminal: inline-graphics — bound the placement in cells (iTerm2 width=99999,
+        // kitty c=/r=): a cell-sized request from program output must not hang the terminal.
+        anyhow::ensure!(
+            width_in_cells <= max_cols && height_in_cells <= max_rows,
+            "refusing to display image of {}x{} cells: max is {}x{} cells",
+            width_in_cells,
+            height_in_cells,
+            max_cols,
+            max_rows
+        );
         let height_in_cells = if params.do_not_move_cursor {
             height_in_cells.min(self.screen().physical_rows - self.cursor.y as usize)
         } else {
@@ -299,23 +320,37 @@ impl TerminalState {
     }
 }
 
-pub(crate) fn check_image_dimensions(width: u32, height: u32) -> anyhow::Result<()> {
-    const MAX_IMAGE_SIZE: u32 = 100_000_000;
-    let size = width.saturating_mul(height).saturating_mul(4);
-    if size > MAX_IMAGE_SIZE {
+// saysdfTerminal: inline-graphics — the pixel limit comes from config (max_image_pixels)
+pub(crate) fn check_image_dimensions(
+    width: u32,
+    height: u32,
+    max_pixels: u32,
+) -> anyhow::Result<()> {
+    let pixels = width as u64 * height as u64;
+    if pixels > max_pixels as u64 {
         anyhow::bail!(
             "Ignoring image data for image with dimensions {}x{} \
-             because required RAM {} > max allowed {}",
+             because {} pixels (RAM {}) > max_image_pixels {}",
             width,
             height,
-            SizeFormatter::new(size, DECIMAL),
-            SizeFormatter::new(MAX_IMAGE_SIZE, DECIMAL),
+            pixels,
+            SizeFormatter::new(pixels.saturating_mul(4), DECIMAL),
+            max_pixels,
         );
     }
-    if size == 0 {
+    if pixels == 0 {
         anyhow::bail!("Ignoring image with 0x0 dimensions");
     }
     Ok(())
+}
+
+// saysdfTerminal: inline-graphics — max placement size in cells: 4 screens, at least 1000.
+pub(crate) const MAX_IMAGE_CELLS_MIN: usize = 1000;
+pub(crate) fn max_image_cells(physical_cols: usize, physical_rows: usize) -> (usize, usize) {
+    (
+        physical_cols.saturating_mul(4).max(MAX_IMAGE_CELLS_MIN),
+        physical_rows.saturating_mul(4).max(MAX_IMAGE_CELLS_MIN),
+    )
 }
 
 #[derive(Debug)]

@@ -1,0 +1,47 @@
+# Russian catalog of saysdf.menu (saysdf/lua/saysdf/menu.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Menu bar titles
+"File" = "Файл"
+"Tabs" = "Вкладки"
+"Git" = "Git"
+"Tools" = "Инструменты"
+"View" = "Вид"
+"Help" = "Справка"
+
+# Notice when the menu bar rejects an update (bad entry)
+"Menu bar" = "Меню"
+"The menu bar was not updated: {error}" = "Меню не обновлено: {error}"
+
+# Fallback menu list (InputSelector title) and the hint of the "Open menu" entry
+"Menu" = "Меню"
+
+# File menu
+"New window" = "Новое окно"
+"Quit" = "Выход"
+
+# Tabs menu
+"New tab" = "Новая вкладка"
+"Split right" = "Разделить вправо"
+"Split down" = "Разделить вниз"
+"Next tab" = "Следующая вкладка"
+"Previous tab" = "Предыдущая вкладка"
+
+# View menu; "Palette" and "Copy" are status bar hints
+"Command palette" = "Палитра команд"
+"Palette" = "Палитра"
+"Search" = "Поиск"
+"Full screen" = "Во весь экран"
+"Larger font" = "Шрифт крупнее"
+"Smaller font" = "Шрифт мельче"
+"Default font size" = "Шрифт по умолчанию"
+"Copy selection" = "Копировать выделение"
+"Copy" = "Копировать"
+
+# Tools menu
+"Module options…" = "Опции модулей…"
+"saysdf: modules and their options (show-module --list)" = "saysdf: модули и их опции (show-module --list)"
+"saysdfTerm-cli not found (next to saysdfTerm or in PATH)" = "saysdfTerm-cli не найден (рядом с saysdfTerm или в PATH)"
+
+# Help menu
+"Open menu" = "Открыть меню"

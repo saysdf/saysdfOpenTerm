@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2018-Present Wez Furlong
+Copyright (c) 2026-Present saysdf (saysdfTerminal modifications)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

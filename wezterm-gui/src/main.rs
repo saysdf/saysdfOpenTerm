@@ -41,6 +41,9 @@ mod download;
 mod frontend;
 mod glyphcache;
 mod inputmap;
+// saysdfTerminal: layout-independent-keys
+#[cfg(test)]
+mod saysdf_keys_tests;
 mod overlay;
 mod quad;
 mod renderstate;
@@ -67,6 +70,8 @@ pub use termwindow::{set_window_class, set_window_position, TermWindow, ICON_DAT
 
 #[derive(Debug, Parser)]
 #[command(
+    // saysdfTerminal: rebrand — --version/--help show the binary name, not the package name
+    name = env!("CARGO_BIN_NAME"),
     about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
     version = config::wezterm_version()
 )]
@@ -561,7 +566,8 @@ impl Publish {
                                 "Running GUI is a different executable from us, will start a new one");
                         }
                         if vers.config_file_path
-                            != std::env::var_os("WEZTERM_CONFIG_FILE").map(Into::into)
+                            // saysdfTerminal: rebrand
+                            != std::env::var_os(saysdf_identity::CONFIG_FILE_ENV).map(Into::into)
                         {
                             *self = Publish::NoConnectNoPublish;
                             anyhow::bail!(
@@ -1172,7 +1178,8 @@ fn run() -> anyhow::Result<()> {
     {
         unsafe {
             ::windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(
-                ::windows::core::PCWSTR(wide_string("org.wezfurlong.wezterm").as_ptr()),
+                // saysdfTerminal: rebrand
+                ::windows::core::PCWSTR(wide_string(saysdf_identity::WINDOW_CLASS).as_ptr()),
             )
             .unwrap();
         }
@@ -1233,7 +1240,7 @@ fn run() -> anyhow::Result<()> {
         Some(sub) => sub,
         None => {
             // Need to fake an argv0
-            let mut argv = vec!["wezterm-gui".to_string()];
+            let mut argv = vec![saysdf_identity::GUI_EXE.to_string()]; // saysdfTerminal: rebrand
             for a in &config.default_gui_startup_args {
                 argv.push(a.clone());
             }

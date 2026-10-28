@@ -1,0 +1,55 @@
+# saysdfTerminal: parser-fuzzing — cargo-fuzz targets (libFuzzer, nightly). Linux/WSL/CI only,
+# see fuzz/README.md. Own [workspace]: the root workspace and its Cargo.lock do not see this package.
+[package]
+name = "saysdf-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+saysdf-fuzz-support = { path = "../saysdf/fuzz-support" }
+
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "vt_parser"
+path = "fuzz_targets/vt_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "osc"
+path = "fuzz_targets/osc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kitty"
+path = "fuzz_targets/kitty.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "iterm"
+path = "fuzz_targets/iterm.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sixel"
+path = "fuzz_targets/sixel.rs"
+test = false
+doc = false
+bench = false

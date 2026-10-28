@@ -23,7 +23,9 @@ fn run_confirmation_impl(message: &str, term: &mut TermWizTerminal) -> anyhow::R
     let x_pos = size.cols * 10 / 100;
 
     // Fit text to the width
-    let wrapped = textwrap::fill(message, text_width);
+    // saysdfTerminal: layout-independent-keys — the prompt names the expected key (D6)
+    let message = format!("{message}\n\n{}", config::saysdf_keys::CONFIRM_HINT);
+    let wrapped = textwrap::fill(&message, text_width);
 
     let message_rows = wrapped.split("\n").count();
     // Now we want to vertically center the prompt in the view.
@@ -92,13 +94,13 @@ fn run_confirmation_impl(message: &str, term: &mut TermWizTerminal) -> anyhow::R
     render(term, active)?;
 
     while let Ok(Some(event)) = term.poll_input(None) {
+        // saysdfTerminal: layout-independent-keys — yes is the physical Y only (D6)
+        if let Some(answer) =
+            super::saysdf_overlay_keys::confirm_answer(&event, term.last_key_phys())
+        {
+            return Ok(answer);
+        }
         match event {
-            InputEvent::Key(KeyEvent {
-                key: KeyCode::Char('y' | 'Y'),
-                ..
-            }) => {
-                return Ok(true);
-            }
             InputEvent::Key(KeyEvent {
                 key: KeyCode::Char('n' | 'N'),
                 ..

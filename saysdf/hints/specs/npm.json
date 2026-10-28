@@ -1,0 +1,30 @@
+{
+  "$comment": "saysdfTerminal: hand-written completion spec, subset of the withfig/autocomplete schema (own text, MIT-compatible). Version 1.",
+  "name": "npm",
+  "description": "Node package manager",
+  "options": [
+    {"name": ["-v", "--version"], "description": "Show npm version"},
+    {"name": ["-h", "--help"], "description": "Show help", "isPersistent": true},
+    {"name": ["-g", "--global"], "description": "Operate in global mode", "isPersistent": true}
+  ],
+  "subcommands": [
+    {"name": "audit", "description": "Run a security audit", "subcommands": [{"name": "fix", "description": "Apply remediations"}]},
+    {"name": "ci", "description": "Clean install a project"},
+    {"name": "exec", "description": "Run a command from a local or remote npm package"},
+    {"name": ["install", "i", "add"], "description": "Install a package",
+     "options": [{"name": ["-D", "--save-dev"], "description": "Save to devDependencies"}, {"name": ["-E", "--save-exact"], "description": "Save exact version"}, {"name": ["--no-save"], "description": "Do not save to package.json"}, {"name": ["-O", "--save-optional"], "description": "Save to optionalDependencies"}]},
+    {"name": "init", "description": "Create a package.json file", "options": [{"name": ["-y", "--yes"], "description": "Skip the questionnaire"}]},
+    {"name": "link", "description": "Symlink a package folder"},
+    {"name": ["list", "ls"], "description": "List installed packages", "options": [{"name": ["--depth"], "description": "Max display depth", "args": {"name": "depth"}}]},
+    {"name": "outdated", "description": "Check for outdated packages"},
+    {"name": "pack", "description": "Create a tarball from a package"},
+    {"name": "publish", "description": "Publish a package", "options": [{"name": ["--dry-run"], "description": "Do not actually publish"}, {"name": ["--tag"], "description": "Publish under the given tag", "args": {"name": "tag"}}]},
+    {"name": ["run", "run-script"], "description": "Run arbitrary package scripts", "options": [{"name": ["--if-present"], "description": "Don't fail if the script is missing"}, {"name": ["-w", "--workspace"], "description": "Run in the given workspace", "args": {"name": "workspace"}}]},
+    {"name": "start", "description": "Start a package"},
+    {"name": ["test", "t"], "description": "Test a package"},
+    {"name": ["uninstall", "remove", "rm", "un"], "description": "Remove a package"},
+    {"name": ["update", "up"], "description": "Update packages"},
+    {"name": "version", "description": "Bump a package version", "args": {"name": "newversion", "suggestions": ["patch", "minor", "major", "prerelease"]}},
+    {"name": "view", "description": "View registry info"}
+  ]
+}

@@ -1,0 +1,12 @@
+# Russian catalog of saysdf.monitor (saysdf/lua/saysdf/monitor.lua).
+
+# Toasts; saysdf is the utility binary name.
+"saysdf not found (next to saysdfTerm or in PATH)" = "saysdf не найден (рядом с saysdfTerm или в PATH)"
+"Failed to start the metrics collector" = "не удалось запустить сборщик метрик"
+
+# Menu "View" and command palette
+"Monitor: status bar metrics (on/off)" = "Монитор: метрики в статус-баре (вкл/выкл)"
+
+# Menu "Tools" and command palette
+"Load monitor" = "Монитор нагрузки"
+"Monitor: processes and charts in a split" = "Монитор: процессы и графики в сплите"

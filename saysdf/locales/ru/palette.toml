@@ -1,0 +1,5 @@
+# Russian catalog of saysdf.palette (saysdf/lua/saysdf/palette.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Notification title when a menu entry is rejected (error text itself stays English)
+"saysdfTerm: menu entry rejected" = "saysdfTerm: пункт меню отклонён"

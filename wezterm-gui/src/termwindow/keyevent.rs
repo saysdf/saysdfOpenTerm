@@ -269,11 +269,26 @@ impl super::TermWindow {
         }
 
         if is_down {
+            // saysdfTerminal: prompt-suggest — session history on user Enter (D3, D9); popup keys Right/Tab/Up/Down/Esc only while the popup is shown (D6)
+            if self.saysdf_suggest_key_down(pane, keycode, raw_modifiers, key_event.is_some() && !leader_active) {
+                return true;
+            }
+            // saysdfTerminal: input hides the banner, Esc is swallowed (startup-help D4)
+            if self.saysdf_key_down(keycode) {
+                return true;
+            }
             if only_key_bindings == OnlyKeyBindings::No {
                 if let Some(modal) = self.get_modal() {
                     if let Key::Code(term_key) = self.win_key_code_to_termwiz_key_code(keycode) {
-                        match modal.key_down(term_key, raw_modifiers.remove_positional_mods(), self)
-                        {
+                        // saysdfTerminal: layout-independent-keys — modals learn the physical key (D5)
+                        match modal.saysdf_key_down_phys(
+                            term_key,
+                            raw_modifiers.remove_positional_mods(),
+                            key_event
+                                .and_then(|e| e.raw.as_ref())
+                                .and_then(config::saysdf_keys::from_raw),
+                            self,
+                        ) {
                             Ok(true) => return true,
                             Ok(false) => {}
                             Err(err) => {
@@ -394,7 +409,14 @@ impl super::TermWindow {
                         }
 
                         did_encode = if is_down {
-                            pane.key_down(term_key, tw_raw_modifiers)
+                            // saysdfTerminal: layout-independent-keys — overlays learn the physical key (D4)
+                            pane.saysdf_key_down_phys(
+                                term_key,
+                                tw_raw_modifiers,
+                                key_event
+                                    .and_then(|e| e.raw.as_ref())
+                                    .and_then(config::saysdf_keys::from_raw),
+                            )
                         } else {
                             pane.key_up(term_key, tw_raw_modifiers)
                         }
@@ -666,7 +688,9 @@ impl super::TermWindow {
 
                 if let Some(modal) = self.get_modal() {
                     if window_key.key_is_down {
-                        modal.key_down(key, modifiers, self).ok();
+                        // saysdfTerminal: layout-independent-keys — modals learn the physical key (D5)
+                        let phys = window_key.raw.as_ref().and_then(config::saysdf_keys::from_raw);
+                        modal.saysdf_key_down_phys(key, modifiers, phys, self).ok();
                     }
                     return;
                 }
@@ -696,7 +720,12 @@ impl super::TermWindow {
                     }
 
                     if window_key.key_is_down {
-                        pane.key_down(key, modifiers)
+                        // saysdfTerminal: layout-independent-keys — overlays learn the physical key (D4)
+                        pane.saysdf_key_down_phys(
+                            key,
+                            modifiers,
+                            window_key.raw.as_ref().and_then(config::saysdf_keys::from_raw),
+                        )
                     } else {
                         pane.key_up(key, modifiers)
                     }

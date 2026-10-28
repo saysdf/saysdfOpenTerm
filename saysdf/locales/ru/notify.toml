@@ -1,0 +1,10 @@
+# Russian catalog of saysdf.notify (saysdf/lua/saysdf/notify.lua).
+
+# Toast body after a long command finished successfully.
+"Command finished" = "Команда завершилась"
+# Toast body after a long command finished with a non-zero exit code.
+"Command failed" = "Команда завершилась с ошибкой"
+
+# Command palette entry (View menu); shown when "do not disturb" is currently on / off.
+"Notify: turn off do not disturb" = "Notify: выключить «не беспокоить»"
+"Notify: turn on do not disturb" = "Notify: включить «не беспокоить»"

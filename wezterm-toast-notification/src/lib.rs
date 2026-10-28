@@ -38,6 +38,24 @@ pub fn show(notif: ToastNotification) {
     }
 }
 
+// saysdfTerminal: activation callback (click on toast -> tab), change command-notifications D4.
+// Supported on Windows; on macOS/dbus the toast is shown without a callback.
+pub type ActivationCallback = Box<dyn Fn() + Send + Sync + 'static>;
+
+// saysdfTerminal: show a toast with an activation callback (change command-notifications D4).
+pub fn show_with_activation(notif: ToastNotification, on_activate: ActivationCallback) {
+    #[cfg(windows)]
+    let result = crate::windows::show_notif_with_activation(notif, Some(on_activate));
+    #[cfg(not(windows))]
+    let result = {
+        drop(on_activate);
+        backend::show_notif(notif)
+    };
+    if let Err(err) = result {
+        log::error!("Failed to show notification: {}", err);
+    }
+}
+
 pub fn persistent_toast_notification_with_click_to_open_url(title: &str, message: &str, url: &str) {
     show(ToastNotification {
         title: title.to_string(),

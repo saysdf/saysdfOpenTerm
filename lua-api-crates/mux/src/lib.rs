@@ -16,6 +16,8 @@ use wezterm_term::TerminalSize;
 
 mod domain;
 mod pane;
+// saysdfTerminal: non-blocking foreground process name for Lua; pub for prompt-suggest
+pub mod saysdf_fg;
 mod tab;
 mod window;
 

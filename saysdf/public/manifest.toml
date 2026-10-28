@@ -1,0 +1,89 @@
+# What goes into the public repository https://github.com/saysdf/saysdfOpenTerm.
+# Read by saysdf/tools/release-public.ps1 (see openspec change public-release, design D1-D5).
+#
+# Format: a small TOML subset - [section], key = "string" | number | true/false | ["string", ...].
+# Patterns are globs relative to the repository root:
+#   *  and ?  match within one path segment, ** matches across segments;
+#   a pattern without "/" matches a file or directory name at any depth, a leading "/" anchors it
+#   at the root (so "/.github" keeps vendored crates' .github folders);
+#   a pattern that matches a directory excludes everything under it.
+# Everything in HEAD that is not excluded is published (all workspace crates, saysdf/ code, assets/,
+# deps/, .gitmodules and submodule entries, docs/, licenses/, get-deps, Cargo.*, README*, LICENSE.md,
+# openspec/specs/, security-reviews/, saysdf/keymap.md, saysdf/tools/, bootstrap/).
+
+[export]
+# Directory whose files are published at the repository root (replacing files with the same path).
+overlay = "saysdf/public/overlay"
+
+exclude = [
+  # Agent rules and tooling (private, Russian)
+  "AGENTS.md",
+  "CLAUDE.md",
+  ".claude",
+  # Upstream sync notes (private, Russian)
+  "/UPSTREAM.md",
+  # Work journals, tech debt, change drafts
+  "saysdf/work",
+  "saysdf/tech-debt.md",
+  "openspec/changes",
+  # No CI on GitHub: neither upstream workflows nor the fork's parked ones
+  "/.github",
+  "**/.github/workflows",
+  "saysdf/ci/github-workflows",
+  # Hosted CI / build-service configuration of upstream
+  "/.cirrus.yml",
+  "/.copr",
+  # Upstream packaging advice that is wrong for saysdfTerm
+  "/README-DISTRO-MAINTAINER.md",
+  # Maintainer-only tools
+  "saysdf/tools/screenshot.ps1",
+  # Archives and screenshots never belong to a release
+  "*.zip",
+  "saysdf/**/screenshots",
+  "saysdf/**/shots",
+]
+
+[scan]
+# Content checks (size, Cyrillic, private deny-list) apply to files that differ from the upstream
+# WezTerm commit the release is based on; name checks and the private-key check apply to all files.
+max_file_size_mb = 5
+
+# Cyrillic is allowed only in these files and on lines with cyrillic_allow_marker. This is the one
+# definition: the i18n source check (saysdf/i18n/tests/sources.rs, code_has_no_cyrillic) reads the
+# same two keys. The release scan also allows a single Cyrillic letter between non-Cyrillic
+# characters (layout key examples such as "E/У" in saysdf/keymap.md); the source check does not.
+cyrillic_allow = [
+  # Translation catalogs and translated documents of the i18n change
+  "**/locales/ru*",
+  "**/locales/ru/**",
+  # Keyboard layout data: Russian letters are key names, not UI text
+  "saysdf/keys/**",
+  "saysdf/cli/src/keys.rs",
+  # Synthetic UTF-8 inputs of the parser fuzzing corpus
+  "fuzz/corpus/**",
+]
+# A line containing this marker may have Cyrillic (test data: layouts, Unicode file names).
+cyrillic_allow_marker = "i18n-allow-cyrillic"
+
+# References to private paths that are excluded above: a published text file must not point to a
+# file the public repository does not have (rewrite it as "the fork's contributor notes", "the
+# upstream-sync notes", "the tech-debt list", "change <name>"). Regexes, matched per line.
+private_refs = [
+  "AGENTS\\.md",
+  "CLAUDE\\.md",
+  "UPSTREAM\\.md",
+  "saysdf/work/",
+  "tech-debt\\.md",
+  "openspec/changes/",
+]
+# Files allowed to mention those paths (globs, as cyrillic_allow).
+private_refs_allow = [
+  # ignore rules and the export rules themselves name the private paths
+  "/.gitignore",
+  "saysdf/public/manifest.toml",
+  "saysdf/tools/release-public.ps1",
+]
+
+# Private markers: one regex per line in a file OUTSIDE the repository, so the markers themselves
+# are never published. Default path; override with -DenyList.
+denylist = "~/.config/saysdfTerm/public-denylist.txt"

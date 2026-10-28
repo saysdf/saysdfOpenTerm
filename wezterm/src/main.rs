@@ -23,6 +23,8 @@ mod cli;
 
 #[derive(Debug, Parser)]
 #[command(
+    // saysdfTerminal: rebrand — --version/--help show the binary name, not the package name
+    name = env!("CARGO_BIN_NAME"),
     about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
     version = wezterm_version()
 )]
@@ -134,6 +136,17 @@ enum SubCommand {
 
     #[command(name = "replay", about = "Replay an asciicast terminal session")]
     Replay(asciicast::PlayCommand),
+
+    // saysdfTerminal: bundled-lua-modules
+    /// Print the source of a bundled Lua module, or list them
+    #[command(name = "show-module")]
+    ShowModule {
+        /// Module name: `saysdf`, `tabs` / `saysdf.tabs`, `default-config`
+        name: Option<String>,
+        /// List bundled modules
+        #[arg(long)]
+        list: bool,
+    },
 
     /// Generate shell completion information
     #[command(name = "shell-completion")]
@@ -755,6 +768,20 @@ fn run() -> anyhow::Result<()> {
         SubCommand::Cli(cli) => cli::run_cli(&opts, cli),
         SubCommand::Record(cmd) => cmd.run(init_config(&opts)?),
         SubCommand::Replay(cmd) => cmd.run(),
+        // saysdfTerminal: bundled-lua-modules
+        SubCommand::ShowModule { name, list } => {
+            let code = saysdf_lua_bundle::show_module(
+                name.as_deref(),
+                list,
+                &mut std::io::stdout(),
+                &mut std::io::stderr(),
+            );
+            if code != 0 {
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                std::process::exit(code);
+            }
+            Ok(())
+        }
         SubCommand::ShellCompletion { shell } => {
             use clap::CommandFactory;
             let mut cmd = Opt::command();
@@ -771,11 +798,7 @@ fn delegate_to_gui(saver: UmaskSaver) -> anyhow::Result<()> {
     // Restore the original umask
     drop(saver);
 
-    let exe_name = if cfg!(windows) {
-        "wezterm-gui.exe"
-    } else {
-        "wezterm-gui"
-    };
+    let exe_name = saysdf_identity::exe_file_name(saysdf_identity::GUI_EXE); // saysdfTerminal: rebrand
 
     let exe = std::env::current_exe()?
         .parent()

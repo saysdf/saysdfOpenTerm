@@ -1,0 +1,16 @@
+[package]
+name = "saysdf-hints"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: command completion engine (bundled specs, safe generators) for saysdf hints and prompt suggestions"
+
+[dependencies]
+saysdf-i18n = {path="../i18n"}
+clap.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# saysdf_i18n::testing::use_lang: the language of a test, per thread
+saysdf-i18n = {path="../i18n", features=["testing"]}
+tempfile.workspace = true

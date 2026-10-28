@@ -1,0 +1,128 @@
+{
+  "$comment": "saysdfTerminal: hand-written completion spec, subset of the withfig/autocomplete schema (own text, MIT-compatible). Version 1.",
+  "name": "cargo",
+  "description": "Rust's package manager",
+  "options": [
+    {"name": ["--version", "-V"], "description": "Print version info and exit"},
+    {"name": ["--list"], "description": "List installed commands"},
+    {"name": ["-v", "--verbose"], "description": "Use verbose output", "isPersistent": true},
+    {"name": ["-q", "--quiet"], "description": "Do not print cargo log messages", "isPersistent": true},
+    {"name": ["--color"], "description": "Coloring", "isPersistent": true, "args": {"name": "when", "suggestions": ["auto", "always", "never"]}},
+    {"name": ["--offline"], "description": "Run without accessing the network", "isPersistent": true},
+    {"name": ["--locked"], "description": "Assert that Cargo.lock will remain unchanged", "isPersistent": true},
+    {"name": ["--frozen"], "description": "Equivalent to --locked and --offline", "isPersistent": true},
+    {"name": ["-h", "--help"], "description": "Print help", "isPersistent": true}
+  ],
+  "subcommands": [
+    {"name": ["build", "b"], "description": "Compile the current package",
+     "options": [
+       {"name": ["--release", "-r"], "description": "Build artifacts in release mode, with optimizations"},
+       {"name": ["-p", "--package"], "description": "Package to build", "args": {"name": "spec"}},
+       {"name": ["--workspace"], "description": "Build all packages in the workspace"},
+       {"name": ["--all-targets"], "description": "Build all targets"},
+       {"name": ["--lib"], "description": "Build only this package's library"},
+       {"name": ["--bin"], "description": "Build only the specified binary", "args": {"name": "name"}},
+       {"name": ["--example"], "description": "Build only the specified example", "args": {"name": "name"}},
+       {"name": ["--tests"], "description": "Build all tests"},
+       {"name": ["-F", "--features"], "description": "Space or comma separated list of features to activate", "args": {"name": "features"}},
+       {"name": ["--all-features"], "description": "Activate all available features"},
+       {"name": ["--no-default-features"], "description": "Do not activate the default feature"},
+       {"name": ["--target"], "description": "Build for the target triple", "args": {"name": "triple"}},
+       {"name": ["-j", "--jobs"], "description": "Number of parallel jobs", "args": {"name": "n"}},
+       {"name": ["--profile"], "description": "Build artifacts with the specified profile", "args": {"name": "name"}},
+       {"name": ["--timings"], "description": "Output information on how long each compilation takes"}
+     ]},
+    {"name": "bench", "description": "Execute all benchmarks of a local package",
+     "options": [
+       {"name": ["-p", "--package"], "description": "Package to run benchmarks for", "args": {"name": "spec"}},
+       {"name": ["--bench"], "description": "Benchmark only the specified target", "args": {"name": "name"}},
+       {"name": ["--no-run"], "description": "Compile, but don't run benchmarks"},
+       {"name": ["--workspace"], "description": "Benchmark all packages in the workspace"}
+     ]},
+    {"name": ["check", "c"], "description": "Analyze the current package and report errors, but don't build object files",
+     "options": [
+       {"name": ["--release", "-r"], "description": "Check artifacts in release mode"},
+       {"name": ["-p", "--package"], "description": "Package(s) to check", "args": {"name": "spec"}},
+       {"name": ["--workspace"], "description": "Check all packages in the workspace"},
+       {"name": ["--all-targets"], "description": "Check all targets"},
+       {"name": ["--tests"], "description": "Check all tests"},
+       {"name": ["-F", "--features"], "description": "Features to activate", "args": {"name": "features"}},
+       {"name": ["--all-features"], "description": "Activate all available features"}
+     ]},
+    {"name": "clean", "description": "Remove the target directory",
+     "options": [
+       {"name": ["-p", "--package"], "description": "Package to clean artifacts for", "args": {"name": "spec"}},
+       {"name": ["--release", "-r"], "description": "Whether or not to clean release artifacts"},
+       {"name": ["--doc"], "description": "Whether or not to clean just the documentation directory"}
+     ]},
+    {"name": "clippy", "description": "Checks a package to catch common mistakes",
+     "options": [
+       {"name": ["-p", "--package"], "description": "Package to check", "args": {"name": "spec"}},
+       {"name": ["--workspace"], "description": "Check all packages in the workspace"},
+       {"name": ["--all-targets"], "description": "Check all targets"},
+       {"name": ["--fix"], "description": "Automatically apply lint suggestions"},
+       {"name": ["--no-deps"], "description": "Run Clippy only on the given crate"}
+     ]},
+    {"name": ["doc", "d"], "description": "Build a package's documentation",
+     "options": [
+       {"name": ["--open"], "description": "Opens the docs in a browser after the operation"},
+       {"name": ["--no-deps"], "description": "Don't build documentation for dependencies"},
+       {"name": ["-p", "--package"], "description": "Package to document", "args": {"name": "spec"}}
+     ]},
+    {"name": "fmt", "description": "Formats all bin and lib files of the current crate",
+     "options": [
+       {"name": ["--all"], "description": "Format all packages"},
+       {"name": ["--check"], "description": "Run in 'check' mode"},
+       {"name": ["-p", "--package"], "description": "Specify package to format", "args": {"name": "spec"}}
+     ]},
+    {"name": "fix", "description": "Automatically fix lint warnings reported by rustc",
+     "options": [{"name": ["--allow-dirty"], "description": "Fix code even if the working directory is dirty"}, {"name": ["--edition"], "description": "Fix in preparation for the next edition"}]},
+    {"name": "init", "description": "Create a new cargo package in an existing directory",
+     "options": [{"name": ["--bin"], "description": "Use a binary (application) template"}, {"name": ["--lib"], "description": "Use a library template"}, {"name": ["--name"], "description": "Set the resulting package name", "args": {"name": "name"}}],
+     "args": {"name": "path", "isOptional": true, "template": "folders"}},
+    {"name": "install", "description": "Install a Rust binary",
+     "options": [
+       {"name": ["--path"], "description": "Filesystem path to local crate to install", "args": {"name": "path", "template": "folders"}},
+       {"name": ["--git"], "description": "Git URL to install the specified crate from", "args": {"name": "url"}},
+       {"name": ["--version"], "description": "Specify a version to install", "args": {"name": "version"}},
+       {"name": ["-f", "--force"], "description": "Force overwriting existing crates or binaries"}
+     ]},
+    {"name": "metadata", "description": "Output the resolved dependencies of a package in machine-readable format",
+     "options": [{"name": ["--format-version"], "description": "Format version", "args": {"name": "version", "suggestions": ["1"]}}, {"name": ["--no-deps"], "description": "Output information only about the workspace members"}]},
+    {"name": "new", "description": "Create a new cargo package",
+     "options": [{"name": ["--bin"], "description": "Use a binary (application) template"}, {"name": ["--lib"], "description": "Use a library template"}, {"name": ["--name"], "description": "Set the resulting package name", "args": {"name": "name"}}],
+     "args": {"name": "path", "template": "folders"}},
+    {"name": "publish", "description": "Upload a package to the registry",
+     "options": [{"name": ["--dry-run", "-n"], "description": "Perform all checks without uploading"}, {"name": ["--allow-dirty"], "description": "Allow dirty working directories to be packaged"}]},
+    {"name": ["run", "r"], "description": "Run a binary or example of the local package",
+     "options": [
+       {"name": ["--release", "-r"], "description": "Build artifacts in release mode, with optimizations"},
+       {"name": ["-p", "--package"], "description": "Package with the target to run", "args": {"name": "spec"}},
+       {"name": ["--bin"], "description": "Name of the bin target to run", "args": {"name": "name"}},
+       {"name": ["--example"], "description": "Name of the example target to run", "args": {"name": "name"}},
+       {"name": ["-F", "--features"], "description": "Features to activate", "args": {"name": "features"}}
+     ]},
+    {"name": ["test", "t"], "description": "Execute all unit and integration tests and build examples of a local package",
+     "options": [
+       {"name": ["--release", "-r"], "description": "Build artifacts in release mode, with optimizations"},
+       {"name": ["-p", "--package"], "description": "Package to run tests for", "args": {"name": "spec"}},
+       {"name": ["--workspace"], "description": "Test all packages in the workspace"},
+       {"name": ["--lib"], "description": "Test only this package's library"},
+       {"name": ["--doc"], "description": "Test only this library's documentation"},
+       {"name": ["--no-run"], "description": "Compile, but don't run tests"},
+       {"name": ["--no-fail-fast"], "description": "Run all tests regardless of failure"},
+       {"name": ["--test"], "description": "Test only the specified test target", "args": {"name": "name"}},
+       {"name": ["-F", "--features"], "description": "Features to activate", "args": {"name": "features"}}
+     ]},
+    {"name": "tree", "description": "Display a tree visualization of a dependency graph",
+     "options": [{"name": ["-i", "--invert"], "description": "Invert the tree direction", "args": {"name": "spec"}}, {"name": ["-d", "--duplicates"], "description": "Show only dependencies which come in multiple versions"}, {"name": ["-e", "--edges"], "description": "The kinds of dependencies to display", "args": {"name": "kinds", "suggestions": ["normal", "build", "dev", "features", "all", "no-dev"]}}]},
+    {"name": "update", "description": "Update dependencies as recorded in the local lock file",
+     "options": [{"name": ["-p", "--package"], "description": "Package to update", "args": {"name": "spec"}}, {"name": ["--dry-run"], "description": "Don't actually write the lockfile"}]},
+    {"name": "add", "description": "Add dependencies to a Cargo.toml manifest file",
+     "options": [{"name": ["--dev"], "description": "Add as development dependency"}, {"name": ["--build"], "description": "Add as build dependency"}, {"name": ["-F", "--features"], "description": "Features to activate", "args": {"name": "features"}}, {"name": ["--path"], "description": "Filesystem path to local crate to add", "args": {"name": "path", "template": "folders"}}]},
+    {"name": "remove", "description": "Remove dependencies from a Cargo.toml manifest file",
+     "options": [{"name": ["--dev"], "description": "Remove as development dependency"}, {"name": ["--build"], "description": "Remove as build dependency"}]},
+    {"name": "search", "description": "Search packages in the registry"},
+    {"name": "vendor", "description": "Vendor all dependencies for a project locally"}
+  ]
+}

@@ -1,0 +1,26 @@
+# Russian catalog of saysdf.tabs (saysdf/lua/saysdf/tabs.lua).
+
+# Default tab color names, shown in the color picker.
+"Red" = "Красный"
+"Orange" = "Оранжевый"
+"Yellow" = "Жёлтый"
+"Green" = "Зелёный"
+"Cyan" = "Бирюзовый"
+"Blue" = "Синий"
+"Purple" = "Фиолетовый"
+"Gray" = "Серый"
+
+# Rename prompt description (one line, shown above the input).
+"Tab name (empty for automatic, Esc to cancel)" = "Имя вкладки (пусто — автоматическое, Esc — отмена)"
+
+# Color picker: last choice and title.
+"Reset color" = "Сбросить цвет"
+"Tab color" = "Цвет вкладки"
+
+# Menu "Tabs" and command palette
+"Rename tab…" = "Переименовать…"
+"Tab: rename tab" = "Tab: переименовать вкладку"
+"Reset tab name" = "Сбросить имя"
+"Tab: reset tab name" = "Tab: сбросить имя вкладки"
+"Tab color…" = "Цвет…"
+"Tab: set tab color" = "Tab: цвет вкладки"

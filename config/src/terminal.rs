@@ -78,6 +78,19 @@ impl wezterm_term::TerminalConfiguration for TermConfig {
         self.configuration().enable_kitty_graphics
     }
 
+    // saysdfTerminal: inline-graphics — image limits from the config
+    fn max_image_pixels(&self) -> u32 {
+        self.configuration().max_image_pixels
+    }
+
+    fn kitty_image_memory_budget(&self) -> usize {
+        self.configuration().kitty_image_memory_budget
+    }
+
+    fn allow_kitty_file_transfer(&self) -> bool {
+        self.configuration().allow_kitty_file_transfer
+    }
+
     fn enable_title_reporting(&self) -> bool {
         self.configuration().enable_title_reporting
     }

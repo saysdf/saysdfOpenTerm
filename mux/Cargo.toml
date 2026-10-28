@@ -48,6 +48,8 @@ url.workspace = true
 wezterm-dynamic.workspace = true
 wezterm-ssh.workspace = true
 wezterm-term = { workspace=true, features=["use_serde"] }
+# saysdfTerminal: rebrand
+saysdf-identity = { path = "../saysdf/identity" }
 
 [target."cfg(windows)".dependencies]
 ntapi.workspace = true

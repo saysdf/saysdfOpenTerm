@@ -4,7 +4,8 @@ use config::{GuiPosition, SshParameters};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-pub const DEFAULT_WINDOW_CLASS: &str = "org.wezfurlong.wezterm";
+// saysdfTerminal: rebrand
+pub const DEFAULT_WINDOW_CLASS: &str = saysdf_identity::WINDOW_CLASS;
 
 /// Helper for parsing config overrides
 pub fn name_equals_value(arg: &str) -> Result<(String, String), String> {

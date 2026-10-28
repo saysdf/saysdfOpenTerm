@@ -313,6 +313,9 @@ impl VTActor for CollectingVTActor {
 const MAX_INTERMEDIATES: usize = 2;
 const MAX_OSC: usize = 64;
 const MAX_PARAMS: usize = 256;
+// saysdfTerminal: parser-fuzzing — ceiling on OSC/APC payload bytes (anti-OOM, not an image limit).
+// Longer sequences are dropped without dispatch; exactly this many bytes are still accepted.
+pub const MAX_SEQUENCE_BYTES: usize = 64 * 1024 * 1024;
 
 struct OscState {
     #[cfg(any(feature = "std", feature = "alloc"))]
@@ -322,6 +325,9 @@ struct OscState {
     param_indices: [usize; MAX_OSC],
     num_params: usize,
     full: bool,
+    // saysdfTerminal: parser-fuzzing — length cap (also used for APC) and overflow flag
+    max_bytes: usize,
+    overflow: bool,
 }
 
 impl OscState {
@@ -338,9 +344,16 @@ impl OscState {
             }
         } else if !self.full {
             let mut buf = [0u8; 8];
-            let extend_result = self
-                .buffer
-                .extend_from_slice(param.encode_utf8(&mut buf).as_bytes());
+            // saysdfTerminal: parser-fuzzing — drop OSC longer than max_bytes
+            let encoded = param.encode_utf8(&mut buf).as_bytes();
+            if self.overflow || self.buffer.len() + encoded.len() > self.max_bytes {
+                if !self.overflow {
+                    self.overflow = true;
+                    self.buffer.clear();
+                }
+                return;
+            }
+            let extend_result = self.buffer.extend_from_slice(encoded);
 
             #[cfg(all(not(feature = "std"), not(feature = "alloc")))]
             {
@@ -375,6 +388,8 @@ pub struct VTParser {
     params_full: bool,
     #[cfg(any(feature = "std", feature = "alloc"))]
     apc_data: Vec<u8>,
+    // saysdfTerminal: parser-fuzzing — APC exceeded osc.max_bytes, drop it
+    apc_overflow: bool,
 
     utf8_parser: Utf8Parser,
     utf8_return_state: State,
@@ -461,7 +476,11 @@ impl VTParser {
                 param_indices,
                 num_params: 0,
                 full: false,
+                // saysdfTerminal: parser-fuzzing
+                max_bytes: MAX_SEQUENCE_BYTES,
+                overflow: false,
             },
+            apc_overflow: false,
 
             params: [CsiParam::default(); MAX_PARAMS],
             num_params: 0,
@@ -531,6 +550,9 @@ impl VTParser {
                 self.ignored_excess_intermediates = false;
                 self.osc.num_params = 0;
                 self.osc.full = false;
+                // saysdfTerminal: parser-fuzzing
+                self.osc.overflow = false;
+                self.apc_overflow = false;
                 self.num_params = 0;
                 self.params_full = false;
                 self.current_param.take();
@@ -617,11 +639,16 @@ impl VTParser {
                 self.osc.buffer.shrink_to_fit();
                 self.osc.num_params = 0;
                 self.osc.full = false;
+                self.osc.overflow = false; // saysdfTerminal: parser-fuzzing
             }
             Action::OscPut => self.osc.put(param as char),
 
             Action::OscEnd => {
-                if self.osc.num_params == 0 {
+                // saysdfTerminal: parser-fuzzing — oversized OSC is dropped without dispatch
+                if self.osc.overflow {
+                    self.osc.overflow = false;
+                    self.osc.buffer.clear();
+                } else if self.osc.num_params == 0 {
                     actor.osc_dispatch(&[]);
                 } else {
                     let mut params: [&[u8]; MAX_OSC] = [b""; MAX_OSC];
@@ -646,14 +673,32 @@ impl VTParser {
                     self.apc_data.clear();
                     self.apc_data.shrink_to_fit();
                 }
+                self.apc_overflow = false; // saysdfTerminal: parser-fuzzing
             }
             Action::ApcPut => {
+                // saysdfTerminal: parser-fuzzing — drop APC longer than the cap
                 #[cfg(any(feature = "std", feature = "alloc"))]
-                self.apc_data.push(param);
+                {
+                    if self.apc_overflow {
+                    } else if self.apc_data.len() >= self.osc.max_bytes {
+                        self.apc_overflow = true;
+                        self.apc_data.clear();
+                        self.apc_data.shrink_to_fit();
+                    } else {
+                        self.apc_data.push(param);
+                    }
+                }
             }
             Action::ApcEnd => {
+                // saysdfTerminal: parser-fuzzing — oversized APC is dropped without dispatch
                 #[cfg(any(feature = "std", feature = "alloc"))]
-                actor.apc_dispatch(core::mem::take(&mut self.apc_data));
+                {
+                    if self.apc_overflow {
+                        self.apc_overflow = false;
+                    } else {
+                        actor.apc_dispatch(core::mem::take(&mut self.apc_data));
+                    }
+                }
             }
 
             Action::Utf8 => self.next_utf8(actor, param),
@@ -1163,5 +1208,48 @@ mod test {
                 }
             ]
         );
+    }
+
+    // saysdfTerminal: parser-fuzzing — length cap on OSC/APC (small cap via the private field)
+    fn parse_with_cap(cap: usize, bytes: &[u8]) -> Vec<VTAction> {
+        let mut parser = VTParser::new();
+        parser.osc.max_bytes = cap;
+        let mut actor = CollectingVTActor::default();
+        parser.parse(bytes, &mut actor);
+        actor.into_vec()
+    }
+
+    #[test]
+    fn saysdf_osc_at_cap_is_dispatched_over_cap_is_dropped() {
+        let at = parse_with_cap(8, b"\x1b]0;1234567\x07x");
+        assert_eq!(
+            at,
+            vec![
+                VTAction::OscDispatch(vec![b"0".to_vec(), b"1234567".to_vec()]),
+                VTAction::Print('x'),
+            ]
+        );
+        let over = parse_with_cap(8, b"\x1b]0;12345678\x07x");
+        assert_eq!(over, vec![VTAction::Print('x')]);
+        // the next OSC after an overflow is parsed normally
+        let after = parse_with_cap(8, b"\x1b]0;12345678\x07\x1b]0;1\x1b\\");
+        assert_eq!(after[0], VTAction::OscDispatch(vec![b"0".to_vec(), b"1".to_vec()]));
+    }
+
+    #[test]
+    fn saysdf_apc_at_cap_is_dispatched_over_cap_is_dropped() {
+        let at = parse_with_cap(4, b"\x1b_Gabc\x1b\\x");
+        assert_eq!(at[0], VTAction::ApcDispatch(b"Gabc".to_vec()));
+        assert_eq!(*at.last().unwrap(), VTAction::Print('x'));
+        let over = parse_with_cap(4, b"\x1b_Gabcd\x1b\\x");
+        assert!(!over.iter().any(|a| matches!(a, VTAction::ApcDispatch(_))));
+        assert_eq!(*over.last().unwrap(), VTAction::Print('x'));
+        let after = parse_with_cap(4, b"\x1b_Gabcd\x1b\\\x1b_Gab\x1b\\");
+        assert!(after.contains(&VTAction::ApcDispatch(b"Gab".to_vec())));
+    }
+
+    #[test]
+    fn saysdf_default_cap_is_64mib() {
+        assert_eq!(VTParser::new().osc.max_bytes, 64 * 1024 * 1024);
     }
 }

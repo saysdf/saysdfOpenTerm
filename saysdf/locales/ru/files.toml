@@ -1,0 +1,21 @@
+# Russian catalog of saysdf.files (saysdf/lua/saysdf/files.lua).
+
+# Toast title and palette brief prefix
+"Files" = "Файлы"
+
+# Toast when a browser action is refused; {why} is one of the reasons below.
+"action rejected: {why}" = "действие отклонено: {why}"
+
+# Reasons for a refused action (shown in the toast above)
+"path" = "путь"
+"not absolute" = "не абсолютный"
+"outside the root" = "вне корня"
+"does not exist" = "не существует"
+"not a folder" = "не папка"
+"is a folder" = "папка"
+"argument" = "аргумент"
+"browser not open" = "браузер не открыт"
+
+# Menu "File" and command palette
+"File browser" = "Файловый браузер"
+"Files: file browser" = "Файлы: файловый браузер"

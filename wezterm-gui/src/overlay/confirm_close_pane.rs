@@ -11,8 +11,9 @@ pub fn confirm_close_pane(
     mut term: TermWizTerminal,
     mux_window_id: WindowId,
     window: ::window::Window,
+    message: String, // saysdfTerminal: text of what is being closed (close-confirmation D3)
 ) -> anyhow::Result<()> {
-    if confirm::run_confirmation("🛑 Really kill this pane?", &mut term)? {
+    if confirm::run_confirmation(&message, &mut term)? {
         promise::spawn::spawn_into_main_thread(async move {
             let mux = Mux::get();
             let tab = match mux.get_active_tab_for_window(mux_window_id) {
@@ -33,11 +34,9 @@ pub fn confirm_close_tab(
     mut term: TermWizTerminal,
     _mux_window_id: WindowId,
     window: ::window::Window,
+    message: String, // saysdfTerminal: text of what is being closed (close-confirmation D3)
 ) -> anyhow::Result<()> {
-    if confirm::run_confirmation(
-        "🛑 Really kill this tab and all contained panes?",
-        &mut term,
-    )? {
+    if confirm::run_confirmation(&message, &mut term)? {
         promise::spawn::spawn_into_main_thread(async move {
             let mux = Mux::get();
             mux.remove_tab(tab_id);
@@ -54,11 +53,9 @@ pub fn confirm_close_window(
     mux_window_id: WindowId,
     window: ::window::Window,
     tab_id: TabId,
+    message: String, // saysdfTerminal: text of what is being closed (close-confirmation D3)
 ) -> anyhow::Result<()> {
-    if confirm::run_confirmation(
-        "🛑 Really kill this window and all contained tabs and panes?",
-        &mut term,
-    )? {
+    if confirm::run_confirmation(&message, &mut term)? {
         promise::spawn::spawn_into_main_thread(async move {
             let mux = Mux::get();
             mux.kill_window(mux_window_id);
@@ -74,8 +71,9 @@ pub fn confirm_quit_program(
     mut term: TermWizTerminal,
     window: ::window::Window,
     tab_id: TabId,
+    message: String, // saysdfTerminal: text of what is being closed (close-confirmation D3)
 ) -> anyhow::Result<()> {
-    if confirm::run_confirmation("🛑 Really Quit WezTerm?", &mut term)? {
+    if confirm::run_confirmation(&message, &mut term)? {
         promise::spawn::spawn_into_main_thread(async move {
             use ::window::{Connection, ConnectionOps};
             let con = Connection::get().expect("call on gui thread");

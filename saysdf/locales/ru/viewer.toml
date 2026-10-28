@@ -1,0 +1,18 @@
+# Russian catalog of saysdf.viewer (saysdf/lua/saysdf/viewer.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Toasts
+"the viewer works only in the local domain" = "просмотр работает только в локальном домене"
+"unknown pane folder: {path}" = "неизвестная папка панели: {path}"
+# {name} is a program name (saysdf, saysdfTerm-cli); do not translate it.
+"{name} not found (next to saysdfTerm or in PATH)" = "{name} не найден (рядом с saysdfTerm или в PATH)"
+
+# Prompt shown by Ctrl+Shift+G
+"Open file in the viewer (path[:line[:column]])" = "Открыть файл в просмотре (путь[:строка[:колонка]])"
+
+# Menu "Tools" and command palette
+"Open file…" = "Открыть файл…"
+"Viewer: open file…" = "Просмотр: открыть файл…"
+
+# Status bar hint (one short word)
+"File" = "Файл"

@@ -1,0 +1,11 @@
+# Russian catalog of saysdf.db (saysdf/lua/saysdf/db.lua).
+
+# Toast; saysdf is the utility binary name.
+"saysdf not found (next to saysdfTerm or in PATH)" = "saysdf не найден (рядом с saysdfTerm или в PATH)"
+
+# Menu "Tools" and command palette
+"Database: viewer…" = "БД: просмотр…"
+"Database: open viewer (saysdf db)" = "БД: открыть просмотр (saysdf db)"
+
+# Status bar hint (one short word)
+"DB" = "БД"

@@ -1,0 +1,57 @@
+# Russian catalog of `saysdf mon` (saysdf/cli/src/mon/*.rs).
+# Process confirmations keep their exact meaning (spec process-control).
+
+# ---- Command line ----
+"saysdf mon: {error}" = "saysdf mon: {error}"
+
+# ---- Context menu items (menu width is 34 characters including the number) ----
+"Pause" = "Пауза"
+"Resume" = "Продолжить"
+"Soft stop" = "Мягкая остановка"
+"Lower priority" = "Приоритет ниже"
+"Raise priority" = "Приоритет выше"
+"Show descendants" = "Дерево потомков"
+"Copy command line" = "Копировать командную строку"
+"Open exe folder" = "Открыть папку exe"
+
+# ---- Confirmation prompts (bottom line, the process may be foreign, a system one or the terminal itself) ----
+# {name} is the process name, {pid} its PID, {user} its owner (uid/SID or ?),
+# {hint} is the key hint that follows ("Press Y to confirm, N or Esc to cancel").
+"Terminate {name} (PID {pid}) owned by {user}? {hint}" = "Завершить {name} (PID {pid}) пользователя {user}? {hint}"
+"Suspend {name} (PID {pid}) owned by {user}? {hint}" = "Приостановить {name} (PID {pid}) пользователя {user}? {hint}"
+
+# ---- Action results (shown after "<name> (PID n): ") ----
+"permission denied" = "нет прав"
+# `paused` is the status word shown in the list, keep it in brackets.
+"paused" = "приостановлен (paused)"
+"resumed" = "продолжен"
+"stop requested" = "запрошена остановка"
+"terminated" = "завершён"
+"the process has no windows — use Kill" = "у процесса нет окон — используйте Kill"
+# {from}/{to} are priority class names (idle, normal, high...), not translated.
+"priority {from} → {to}" = "приоритет {from} → {to}"
+
+# ---- Status line ----
+# {n} is the number of characters copied to the clipboard.
+"copied: {n} character" = { one = "скопировано: {n} символ", few = "скопировано: {n} символа", many = "скопировано: {n} символов", other = "скопировано: {n} символов" }
+"opened: {path}" = "открыто: {path}"
+"exe path unavailable (permission denied)" = "путь exe недоступен (нет прав)"
+"descendants of PID {pid} (Esc for all processes)" = "потомки PID {pid} (Esc — все процессы)"
+"PID {pid} is now a different process or has exited" = "PID {pid} уже другой процесс или завершён"
+"cancelled" = "отменено"
+# Search mode line; {query} is the typed text.
+"/{query}▏  Enter — done, Esc — clear" = "/{query}▏  Enter — готово, Esc — сброс"
+# Default bottom line; {status} is the metrics line ("CPU 12% RAM ..."). Keys stay as they are.
+"{status} │ q quit  / search  s sort  t tree  m/right-click menu" = "{status} │ q выход  / поиск  s сорт  t дерево  m/ПКМ меню"
+
+# ---- Panels ----
+# Panel title, keep the surrounding spaces.
+" Memory / network / disk / GPU " = " Память / сеть / диск / GPU "
+# Shown instead of the GPU graph when the OS gives no data (spec system-metrics).
+"GPU: unavailable" = "GPU: недоступно"
+# Table title; {tree}, {query}, {focus} are the optional parts below (each ends with a space).
+" Processes: {count} │ sort {sort} {tree}{query}{focus} " = " Процессы: {count} │ сорт {sort} {tree}{query}{focus} "
+"│ tree " = "│ дерево "
+"│ descendants {pid} " = "│ потомки {pid} "
+# Table header, last column.
+"NAME / COMMAND" = "ИМЯ / КОМАНДА"

@@ -1,0 +1,6 @@
+# Russian catalog of saysdf.hotbar (saysdf/lua/saysdf/hotbar.lua).
+# Format: "English source text" = "translation" (plural entries: tables of CLDR categories).
+
+# Built-in status bar hints
+"⚠ DB: WRITE ENABLED" = "⚠ БД: ЗАПИСЬ ВКЛЮЧЕНА"
+"q/Esc exit" = "q/Esc выход"

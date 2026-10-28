@@ -1,0 +1,22 @@
+[package]
+name = "saysdf-db"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: database backends (SQLite, PostgreSQL, MySQL, Dolt), read-only by default"
+
+[dependencies]
+saysdf-identity = {path="../identity"}
+rusqlite = {workspace=true, features=["bundled"]}
+postgres = "0.19"
+postgres-native-tls = "0.5"
+native-tls = "0.2"
+mysql = {version="26", default-features=false, features=["native-tls", "minimal-rust"]}
+# minimal-rust = flate2 rust_backend (miniz_oxide, already in the lock); without a backend flate2 fails to build in `-p saysdf-db`
+serde.workspace = true
+serde_json.workspace = true
+# already in Cargo.lock via saysdf-cli
+csv = "1"
+
+[dev-dependencies]
+tempfile.workspace = true

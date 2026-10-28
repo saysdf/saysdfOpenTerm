@@ -10,3 +10,5 @@ publish = false
 [dependencies]
 clap.workspace = true
 config.workspace = true
+# saysdfTerminal: rebrand
+saysdf-identity = { path = "../saysdf/identity" }

@@ -1,0 +1,9 @@
+[package]
+name = "saysdf-keys"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "saysdfTerm: physical key + modifiers resolver for bindings, overlays, menus and TUI tools"
+
+[dependencies]
+wezterm-input-types.workspace = true

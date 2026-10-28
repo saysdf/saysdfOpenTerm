@@ -118,11 +118,8 @@ impl UnixDomain {
             Some(cmd) => Ok(cmd.iter().map(Into::into).collect()),
             None => Ok(vec![
                 std::env::current_exe()?
-                    .with_file_name(if cfg!(windows) {
-                        "wezterm-mux-server.exe"
-                    } else {
-                        "wezterm-mux-server"
-                    })
+                    // saysdfTerminal: rebrand
+                    .with_file_name(saysdf_identity::exe_file_name(saysdf_identity::MUX_EXE))
                     .into_os_string(),
                 OsString::from("--daemonize"),
             ]),

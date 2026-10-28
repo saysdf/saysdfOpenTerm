@@ -174,6 +174,14 @@ impl UserData for MuxPane {
             Ok(pane.get_foreground_process_name(CachePolicy::FetchImmediate))
         });
 
+        // saysdfTerminal: variant without a synchronous process-tree walk (stale-while-revalidate,
+        // see saysdf_fg.rs) - for hot handlers such as update-status.
+        methods.add_method("get_foreground_process_name_cached", |_, this, _: ()| {
+            let mux = get_mux()?;
+            let pane = this.resolve(&mux)?;
+            Ok(crate::saysdf_fg::foreground_process_name_cached(pane))
+        });
+
         methods.add_method("get_foreground_process_info", |_, this, _: ()| {
             let mux = get_mux()?;
             let pane = this.resolve(&mux)?;

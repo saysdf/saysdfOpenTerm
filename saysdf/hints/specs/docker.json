@@ -1,0 +1,50 @@
+{
+  "$comment": "saysdfTerminal: hand-written completion spec, subset of the withfig/autocomplete schema (own text, MIT-compatible). Version 1.",
+  "name": "docker",
+  "description": "A self-sufficient runtime for containers",
+  "options": [
+    {"name": ["--context", "-c"], "description": "Name of the context to use", "args": {"name": "context"}},
+    {"name": ["-H", "--host"], "description": "Daemon socket to connect to", "args": {"name": "host"}},
+    {"name": ["-v", "--version"], "description": "Print version information and quit"},
+    {"name": ["--help"], "description": "Print usage", "isPersistent": true}
+  ],
+  "subcommands": [
+    {"name": "build", "description": "Build an image from a Dockerfile",
+     "options": [{"name": ["-t", "--tag"], "description": "Name and optionally a tag (name:tag)", "args": {"name": "name"}}, {"name": ["-f", "--file"], "description": "Name of the Dockerfile", "args": {"name": "file", "template": "filepaths"}}, {"name": ["--no-cache"], "description": "Do not use cache when building the image"}, {"name": ["--build-arg"], "description": "Set build-time variables", "args": {"name": "arg"}}, {"name": ["--target"], "description": "Set the target build stage", "args": {"name": "stage"}}, {"name": ["--pull"], "description": "Always attempt to pull newer images"}, {"name": ["--platform"], "description": "Set platform", "args": {"name": "platform"}}],
+     "args": {"name": "path", "template": "folders"}},
+    {"name": "compose", "description": "Docker Compose",
+     "options": [{"name": ["-f", "--file"], "description": "Compose configuration files", "args": {"name": "file", "template": "filepaths"}}, {"name": ["-p", "--project-name"], "description": "Project name", "args": {"name": "name"}}],
+     "subcommands": [
+       {"name": "up", "description": "Create and start containers", "options": [{"name": ["-d", "--detach"], "description": "Run containers in the background"}, {"name": ["--build"], "description": "Build images before starting containers"}, {"name": ["--force-recreate"], "description": "Recreate containers even if unchanged"}]},
+       {"name": "down", "description": "Stop and remove containers, networks", "options": [{"name": ["-v", "--volumes"], "description": "Remove named volumes"}]},
+       {"name": "ps", "description": "List containers"},
+       {"name": "logs", "description": "View output from containers", "options": [{"name": ["-f", "--follow"], "description": "Follow log output"}]},
+       {"name": "build", "description": "Build or rebuild services"},
+       {"name": "pull", "description": "Pull service images"},
+       {"name": "exec", "description": "Execute a command in a running container"},
+       {"name": "restart", "description": "Restart service containers"},
+       {"name": "stop", "description": "Stop services"}
+     ]},
+    {"name": "exec", "description": "Execute a command in a running container",
+     "options": [{"name": ["-i", "--interactive"], "description": "Keep STDIN open"}, {"name": ["-t", "--tty"], "description": "Allocate a pseudo-TTY"}, {"name": ["-e", "--env"], "description": "Set environment variables", "args": {"name": "env"}}, {"name": ["-u", "--user"], "description": "Username or UID", "args": {"name": "user"}}, {"name": ["-w", "--workdir"], "description": "Working directory inside the container", "args": {"name": "dir"}}]},
+    {"name": "images", "description": "List images", "options": [{"name": ["-a", "--all"], "description": "Show all images"}, {"name": ["-q", "--quiet"], "description": "Only show image IDs"}]},
+    {"name": "inspect", "description": "Return low-level information on Docker objects"},
+    {"name": "login", "description": "Log in to a registry"},
+    {"name": "logout", "description": "Log out from a registry"},
+    {"name": "logs", "description": "Fetch the logs of a container", "options": [{"name": ["-f", "--follow"], "description": "Follow log output"}, {"name": ["--tail", "-n"], "description": "Number of lines to show from the end", "args": {"name": "n"}}, {"name": ["-t", "--timestamps"], "description": "Show timestamps"}]},
+    {"name": "network", "description": "Manage networks", "subcommands": [{"name": "ls", "description": "List networks"}, {"name": "create", "description": "Create a network"}, {"name": "rm", "description": "Remove one or more networks"}, {"name": "inspect", "description": "Display detailed information"}, {"name": "prune", "description": "Remove all unused networks"}]},
+    {"name": "ps", "description": "List containers", "options": [{"name": ["-a", "--all"], "description": "Show all containers"}, {"name": ["-q", "--quiet"], "description": "Only display container IDs"}, {"name": ["--format"], "description": "Format output using a Go template", "args": {"name": "format"}}]},
+    {"name": "pull", "description": "Download an image from a registry", "options": [{"name": ["--platform"], "description": "Set platform", "args": {"name": "platform"}}]},
+    {"name": "push", "description": "Upload an image to a registry"},
+    {"name": "restart", "description": "Restart one or more containers"},
+    {"name": "rm", "description": "Remove one or more containers", "options": [{"name": ["-f", "--force"], "description": "Force the removal of a running container"}, {"name": ["-v", "--volumes"], "description": "Remove anonymous volumes"}]},
+    {"name": "rmi", "description": "Remove one or more images", "options": [{"name": ["-f", "--force"], "description": "Force removal of the image"}]},
+    {"name": "run", "description": "Create and run a new container from an image",
+     "options": [{"name": ["-d", "--detach"], "description": "Run container in background"}, {"name": ["-i", "--interactive"], "description": "Keep STDIN open"}, {"name": ["-t", "--tty"], "description": "Allocate a pseudo-TTY"}, {"name": ["--rm"], "description": "Automatically remove the container when it exits"}, {"name": ["-p", "--publish"], "description": "Publish a container's port(s) to the host", "args": {"name": "port"}}, {"name": ["-v", "--volume"], "description": "Bind mount a volume", "args": {"name": "volume"}}, {"name": ["-e", "--env"], "description": "Set environment variables", "args": {"name": "env"}}, {"name": ["--name"], "description": "Assign a name to the container", "args": {"name": "name"}}, {"name": ["--network"], "description": "Connect a container to a network", "args": {"name": "network"}}, {"name": ["-w", "--workdir"], "description": "Working directory inside the container", "args": {"name": "dir"}}, {"name": ["--entrypoint"], "description": "Overwrite the default ENTRYPOINT", "args": {"name": "cmd"}}]},
+    {"name": "start", "description": "Start one or more stopped containers"},
+    {"name": "stop", "description": "Stop one or more running containers"},
+    {"name": "system", "description": "Manage Docker", "subcommands": [{"name": "df", "description": "Show docker disk usage"}, {"name": "prune", "description": "Remove unused data"}, {"name": "info", "description": "Display system-wide information"}]},
+    {"name": "tag", "description": "Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE"},
+    {"name": "volume", "description": "Manage volumes", "subcommands": [{"name": "ls", "description": "List volumes"}, {"name": "create", "description": "Create a volume"}, {"name": "rm", "description": "Remove one or more volumes"}, {"name": "inspect", "description": "Display detailed information"}, {"name": "prune", "description": "Remove unused local volumes"}]}
+  ]
+}

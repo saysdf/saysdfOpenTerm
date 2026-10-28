@@ -29,6 +29,12 @@ notify.workspace = true
 ordered-float = { workspace=true, features = ["serde"] }
 portable-pty = { workspace=true, features = ["serde_support"]}
 promise.workspace = true
+# saysdfTerminal: rebrand
+saysdf-identity = { path = "../saysdf/identity" }
+# saysdfTerminal: layout-independent-keys
+saysdf-keys = { path = "../saysdf/keys" }
+# saysdfTerminal: bundled-lua-modules
+saysdf-lua-bundle = { path = "../saysdf/lua-bundle" }
 serde = {workspace=true, features = ["rc", "derive"]}
 serde_json.workspace = true
 shlex.workspace = true

@@ -1,0 +1,6 @@
+# Russian catalog of the root module saysdf (saysdf/lua/saysdf/init.lua).
+# Format: "English source text" = "translation" (plural entries: one/few/many tables).
+
+# Notice (status bar + toast) once per config load: user catalog files under
+# <config dir>/locales/<lang>/ were rejected; {n} = number of files.
+"{n} translation file in the config folder has errors and was ignored; see the log" = { one = "{n} файл перевода в папке конфига содержит ошибки и пропущен; подробности в журнале", few = "{n} файла перевода в папке конфига содержат ошибки и пропущены; подробности в журнале", many = "{n} файлов перевода в папке конфига содержат ошибки и пропущены; подробности в журнале" }

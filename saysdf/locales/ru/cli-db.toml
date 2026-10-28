@@ -1,0 +1,152 @@
+# Russian catalog of `saysdf db` (saysdf/cli/src/db/*.rs).
+
+# ---- Dangerous (write) mode. Safety-critical: keep the wording and the database name. ----
+
+# Dialog title and banner label; shown in capitals on a red background.
+"DANGEROUS MODE" = "ОПАСНЫЙ РЕЖИМ"
+# Confirmation dialog; {db} is the database name the user has to type.
+"Queries will be able to modify data in “{db}”.\nTo enable, type the database name and press Enter (Esc to cancel)." = "Запросы смогут изменять данные в «{db}».\nДля включения введите имя базы и нажмите Enter (Esc — отмена)."
+# Toolbar buttons. Keep them short: the button is clickable and drawn in one line.
+"[ Allow writes… ]" = "[ Разрешить запись… ]"
+"[ Leave dangerous mode ]" = "[ Выйти из опасного режима ]"
+# Reason recorded with the write grant; shown after the banner text.
+"enabled by the toolbar button" = "включено кнопкой тулбара"
+"database name does not match — writes not enabled" = "имя базы не совпало — запись не включена"
+"reconnecting with write access…" = "переподключение с правом записи…"
+"connected: WRITES ALLOWED" = "подключено: ЗАПИСЬ РАЗРЕШЕНА"
+# Toolbar access indicator (upper case, red).
+"WRITE" = "ЗАПИСЬ"
+"read-only" = "read-only"
+"connecting (read-only)…" = "подключение (read-only)…"
+"connected (read-only)" = "подключено (read-only)"
+
+# ---- Status line ----
+"rows affected: {n}" = "затронуто строк: {n}"
+"no columns" = "нет колонок"
+"connection error: {error}" = "ошибка подключения: {error}"
+"rows {from}–{to}" = "строки {from}–{to}"
+"filter {column} LIKE {value}" = "фильтр {column} LIKE {value}"
+"{n} row in {ms} ms" = { one = "{n} строк за {ms} мс", few = "{n} строк за {ms} мс", many = "{n} строк за {ms} мс", other = "{n} строк за {ms} мс" }
+"truncated to {max}" = "обрезано до {max}"
+"affected {n}" = "затронуто {n}"
+"error: {error}" = "ошибка: {error}"
+"query error: {error}" = "ошибка запроса: {error}"
+"(connection branch)" = "(ветка подключения)"
+"connection branch" = "ветка подключения"
+"history is empty" = "история пуста"
+"history {ref}" = "история {ref}"
+"history of the current branch" = "история текущей ветки"
+"saved {n} row: {path}" = { one = "сохранена {n} строка: {path}", few = "сохранено {n} строки: {path}", many = "сохранено {n} строк: {path}", other = "сохранено {n} строк: {path}" }
+"export: {error}" = "экспорт: {error}"
+"running… (Esc to cancel)" = "выполняется… (Esc — отмена)"
+"not connected" = "нет подключения"
+"nothing to export" = "нечего экспортировать"
+"exporting…" = "экспорт…"
+"AS OF {ref} — open a table" = "AS OF {ref} — откройте таблицу"
+"config directory not found" = "не найден каталог конфигурации"
+"not saved: {error}" = "не сохранено: {error}"
+"<table>" = "<таблица>"
+"export cancelled" = "экспорт отменён"
+"cancelling query…" = "отмена запроса…"
+"connection from --connections — edit the source file" = "подключение из --connections — правьте исходный файл"
+"secret store unavailable — password kept for this session only" = "хранилище секретов недоступно — пароль только на эту сессию"
+"form: {error}" = "форма: {error}"
+
+# ---- Connection form: labels ----
+"Password" = "Пароль"
+"Title" = "Название"
+"Description" = "Описание"
+"Type" = "Тип"
+"SQLite file" = "Файл SQLite"
+"Host" = "Хост"
+"Port" = "Порт"
+"Database" = "База"
+"User" = "Пользователь"
+"Remember password" = "Запомнить пароль"
+"SSH alias" = "SSH-алиас"
+"Container" = "Контейнер"
+"Edit connection" = "Изменить подключение"
+"New connection" = "Новое подключение"
+# ---- Connection form: hints under the fields ----
+"empty — keep as is / ask when connecting" = "пусто — не менять / спросить при подключении"
+"Latin letters, digits, - _ ." = "латиница, цифры, - _ ."
+"for example: a role with SELECT only" = "например: роль только с SELECT"
+"file path (for sqlite)" = "путь к файлу (для sqlite)"
+"driver default" = "по умолчанию драйвера"
+"Postgres: prefer a role with SELECT only" = "Postgres: лучше роль только с SELECT"
+"y/n — in the OS secret store (saysdfTerm)" = "y/n — в хранилище ОС (saysdfTerm)"
+"postgres-ssh: Host from ~/.ssh/config (key login)" = "postgres-ssh: Host из ~/.ssh/config (вход по ключу)"
+"postgres-ssh: docker container with psql; empty — psql on the host" = "postgres-ssh: docker-контейнер с psql; пусто — psql на хосте"
+# ---- Connection form: validation errors ----
+"this id already exists" = "такой id уже есть"
+"sqlite, postgres, mysql, dolt or postgres-ssh" = "sqlite, postgres, mysql, dolt или postgres-ssh"
+# Names of fields in the error "<name>: 1–128 characters".
+"database" = "база"
+"user" = "пользователь"
+"container" = "контейнер"
+"specify a file" = "укажите файл"
+"require, verify-full or disable" = "require, verify-full или disable"
+
+# ---- Key hints in the status line ----
+"a/Enter — add · q/Esc — quit" = "a/Enter — добавить · q/Esc — выход"
+"Enter — connect · a — add · e — edit · d — delete · q — quit" = "Enter — подключиться · a — добавить · e — изменить · d — удалить · q — выход"
+"Enter — toggle writes · Tab — focus" = "Enter — переключить запись · Tab — фокус"
+"Enter — open · b — branches · h — history · 1/2/3 — tabs · r — reconnect · c — connections · q — quit" = "Enter — открыть · b — ветки · h — история · 1/2/3 — вкладки · r — переподключить · c — подключения · q — выход"
+"Enter — open · Tab — focus · 1/2/3 — tabs · r — reconnect · c — connections · q — quit" = "Enter — открыть · Tab — фокус · 1/2/3 — вкладки · r — переподключить · c — подключения · q — выход"
+"←→↑↓ · [ ] — page · s — sort · / — filter · e — export · b/h — branches/history" = "←→↑↓ · [ ] — страница · s — сортировка · / — фильтр · e — экспорт · b/h — ветки/история"
+"←→↑↓ · [ ] — page · s — sort · / — filter · e — export · Tab — focus" = "←→↑↓ · [ ] — страница · s — сортировка · / — фильтр · e — экспорт · Tab — фокус"
+"F5/Ctrl+Enter — run · Ctrl+↑↓ — history · Esc — cancel · Ctrl+E — export · F2/F3 — tabs" = "F5/Ctrl+Enter — выполнить · Ctrl+↑↓ — история · Esc — отмена · Ctrl+E — экспорт · F2/F3 — вкладки"
+"↑↓ — scroll · Tab — focus" = "↑↓ — прокрутка · Tab — фокус"
+
+# ---- Screens ----
+"connections" = "подключения"
+"from --connections" = "из --connections"
+"(schema)" = "(схема)"
+"Schema" = "Схема"
+# Tab names with their hotkey digit.
+"1 Structure" = "1 Структура"
+"2 Data" = "2 Данные"
+"3 Query" = "3 Запрос"
+"Select a table in the tree (Enter)." = "Выберите таблицу в дереве (Enter)."
+"Columns" = "Колонки"
+"Indexes" = "Индексы"
+"Foreign keys" = "Внешние ключи"
+
+# ---- Dialogs ----
+"The password is not in the secret store — enter it (Esc to cancel)." = "Пароль не сохранён в хранилище — введите (Esc — отмена)."
+"Filter" = "Фильтр"
+"LIKE on the current column (without % — substring; empty — reset)." = "LIKE по текущей колонке (без % — подстрока; пусто — сбросить)."
+"Export" = "Экспорт"
+"{what}: file path (.csv or .json)." = "{what}: путь к файлу (.csv или .json)."
+"All query rows (re-run read-only)" = "Все строки запроса (перезапуск только на чтение)"
+"Whole table (with sort and filter)" = "Вся таблица (с сортировкой и фильтром)"
+"File {path} exists. Overwrite? {hint}" = "Файл {path} существует. Перезаписать? {hint}"
+"Enter — view at commit · a — AS OF query · Esc — close" = "Enter — смотреть на коммите · a — запрос AS OF · Esc — закрыть"
+"Enter — view branch · h — history · a — AS OF query · Esc — close" = "Enter — смотреть ветку · h — история · a — запрос AS OF · Esc — закрыть"
+"Dolt history" = "История Dolt"
+"Dolt branches" = "Ветки Dolt"
+"Delete" = "Удаление"
+"Delete connection “{id}” and its password from the secret store? {hint}" = "Удалить подключение «{id}» и его пароль из хранилища? {hint}"
+"or" = "или"
+"No saved connections." = "Сохранённых подключений нет."
+"add a connection" = "добавить подключение"
+"quit" = "выход"
+"SQLite file: saysdf db <file.sqlite>" = "Файл SQLite: saysdf db <файл.sqlite>"
+
+# ---- Banner (first line in write mode; keep the wording, {db} is the database name) ----
+"DANGEROUS MODE (writes to {db} are allowed)" = "ОПАСНЫЙ РЕЖИМ (запись в {db} разрешена)"
+# Short form for a narrow terminal.
+"DANGEROUS MODE: {db}" = "ОПАСНЫЙ РЕЖИМ: {db}"
+# {reason} is empty or starts with a comma, for example ", enabled by the toolbar button".
+"queries change data without read-only protection{reason}; leave: click the label, F12 or Esc Esc" = "запросы изменяют данные без read-only защиты{reason}; выход: клик по надписи, F12 или Esc Esc"
+
+# ---- Command line messages (stderr) ----
+"connection “{id}” not found" = "подключение «{id}» не найдено"
+"--print needs --sqlite <file>, a path or --connection <id>" = "--print требует --sqlite <файл>, путь или --connection <id>"
+"--print needs --query or --tables" = "--print требует --query или --tables"
+"result truncated to {max} rows" = "результат обрезан до {max} строк"
+
+# ---- Worker and saved connections ----
+"cancelling is not supported by this driver" = "отмена не поддерживается этим драйвером"
+"1–64 characters" = "1–64 символа"
+"only Latin letters, digits, - _ ." = "только латиница, цифры, - _ ."

@@ -10,7 +10,7 @@ install -Dsm755 -t AppDir/usr/bin target/release/wezterm
 install -Dsm755 -t AppDir/usr/bin target/release/wezterm-gui
 install -Dsm755 -t AppDir/usr/bin target/release/strip-ansi-escapes
 install -Dm644 assets/icon/terminal.png AppDir/usr/share/icons/hicolor/128x128/apps/org.wezfurlong.wezterm.png
-install -Dm644 assets/wezterm.desktop AppDir/usr/share/applications/org.wezfurlong.wezterm.desktop
+install -Dm644 assets/saysdfTerm.desktop AppDir/usr/share/applications/org.wezfurlong.wezterm.desktop
 install -Dm644 assets/wezterm.appdata.xml AppDir/usr/share/metainfo/org.wezfurlong.wezterm.appdata.xml
 install -Dm644 assets/wezterm-nautilus.py AppDir/usr/share/nautilus-python/extensions/wezterm-nautilus.py
 
@@ -39,7 +39,7 @@ OUTPUT="$OUTPUT" \
   --exclude-library='libwayland-client.so.0' \
   --appdir AppDir \
   --output appimage \
-  --desktop-file assets/wezterm.desktop
+  --desktop-file assets/saysdfTerm.desktop
 
 # Update the AUR build file.  We only really want to use this for tagged
 # builds but it doesn't hurt to generate it always here.

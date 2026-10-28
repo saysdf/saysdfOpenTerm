@@ -1,0 +1,30 @@
+{
+  "$comment": "saysdfTerminal: hand-written completion spec, subset of the withfig/autocomplete schema (own text, MIT-compatible). Version 1.",
+  "name": "kubectl",
+  "description": "Kubernetes command-line tool",
+  "options": [
+    {"name": ["-n", "--namespace"], "description": "The namespace scope for this request", "isPersistent": true, "args": {"name": "namespace"}},
+    {"name": ["--context"], "description": "The name of the kubeconfig context to use", "isPersistent": true, "args": {"name": "context"}},
+    {"name": ["--kubeconfig"], "description": "Path to the kubeconfig file", "isPersistent": true, "args": {"name": "file", "template": "filepaths"}},
+    {"name": ["-A", "--all-namespaces"], "description": "List the requested object(s) across all namespaces", "isPersistent": true}
+  ],
+  "subcommands": [
+    {"name": "apply", "description": "Apply a configuration to a resource by file name or stdin",
+     "options": [{"name": ["-f", "--filename"], "description": "Files that contain the configuration to apply", "args": {"name": "file", "template": "filepaths"}}, {"name": ["-k", "--kustomize"], "description": "Process a kustomization directory", "args": {"name": "dir", "template": "folders"}}, {"name": ["--dry-run"], "description": "Dry run mode", "args": {"name": "mode", "suggestions": ["none", "client", "server"]}}]},
+    {"name": "config", "description": "Modify kubeconfig files", "subcommands": [{"name": "get-contexts", "description": "Describe one or many contexts"}, {"name": "use-context", "description": "Set the current-context"}, {"name": "current-context", "description": "Display the current-context"}, {"name": "view", "description": "Display merged kubeconfig settings"}, {"name": "set-context", "description": "Set a context entry"}]},
+    {"name": "create", "description": "Create a resource from a file or from stdin", "options": [{"name": ["-f", "--filename"], "description": "Filename to use to create the resource", "args": {"name": "file", "template": "filepaths"}}]},
+    {"name": "delete", "description": "Delete resources", "options": [{"name": ["-f", "--filename"], "description": "File containing the resource to delete", "args": {"name": "file", "template": "filepaths"}}, {"name": ["--force"], "description": "Immediately remove resources from API"}]},
+    {"name": "describe", "description": "Show details of a specific resource or group of resources"},
+    {"name": "edit", "description": "Edit a resource on the server"},
+    {"name": "exec", "description": "Execute a command in a container", "options": [{"name": ["-i", "--stdin"], "description": "Pass stdin to the container"}, {"name": ["-t", "--tty"], "description": "Stdin is a TTY"}, {"name": ["-c", "--container"], "description": "Container name", "args": {"name": "container"}}]},
+    {"name": "explain", "description": "Get documentation for a resource"},
+    {"name": "get", "description": "Display one or many resources", "options": [{"name": ["-o", "--output"], "description": "Output format", "args": {"name": "format", "suggestions": ["json", "yaml", "wide", "name"]}}, {"name": ["-w", "--watch"], "description": "Watch for changes"}, {"name": ["-l", "--selector"], "description": "Selector (label query) to filter on", "args": {"name": "selector"}}],
+     "args": {"name": "resource", "suggestions": ["pods", "deployments", "services", "nodes", "namespaces", "configmaps", "secrets", "ingresses", "jobs", "cronjobs", "statefulsets", "daemonsets", "events", "pv", "pvc"]}},
+    {"name": "logs", "description": "Print the logs for a container in a pod", "options": [{"name": ["-f", "--follow"], "description": "Stream the logs"}, {"name": ["-c", "--container"], "description": "Print the logs of this container", "args": {"name": "container"}}, {"name": ["--tail"], "description": "Lines of recent log file to display", "args": {"name": "n"}}, {"name": ["-p", "--previous"], "description": "Print logs for the previous instance"}]},
+    {"name": "port-forward", "description": "Forward one or more local ports to a pod"},
+    {"name": "rollout", "description": "Manage the rollout of a resource", "subcommands": [{"name": "status", "description": "Show the status of the rollout"}, {"name": "restart", "description": "Restart a resource"}, {"name": "undo", "description": "Undo a previous rollout"}, {"name": "history", "description": "View rollout history"}]},
+    {"name": "scale", "description": "Set a new size for a deployment, replica set, or replication controller", "options": [{"name": ["--replicas"], "description": "The new desired number of replicas", "args": {"name": "n"}}]},
+    {"name": "top", "description": "Display resource (CPU/memory) usage", "subcommands": [{"name": "node", "description": "Display resource usage of nodes"}, {"name": "pod", "description": "Display resource usage of pods"}]},
+    {"name": "version", "description": "Print the client and server version information"}
+  ]
+}

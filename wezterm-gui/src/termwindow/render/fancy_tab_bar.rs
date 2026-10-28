@@ -53,6 +53,7 @@ const PLUS_BUTTON: &[Poly] = &[
 impl crate::TermWindow {
     pub fn invalidate_fancy_tab_bar(&mut self) {
         self.fancy_tab_bar.take();
+        self.saysdf_bars.invalidate_cache(); // saysdfTerminal: fork bars cache atlas sprites the same way (perf-1)
     }
 
     pub fn build_fancy_tab_bar(&self, palette: &ColorPalette) -> anyhow::Result<ComputedElement> {
@@ -66,27 +67,20 @@ impl crate::TermWindow {
             .as_ref()
             .and_then(|c| c.tab_bar.as_ref())
             .cloned()
+            // saysdfTerminal: otherwise colors follow the color scheme (change theme-switcher)
+            .or_else(|| crate::termwindow::saysdf_bars::effective_tab_bar(&self.config))
             .unwrap_or_else(TabBarColors::default);
 
         let mut left_status = vec![];
         let mut left_eles = vec![];
         let mut right_eles = vec![];
+        // saysdfTerminal: tab bar background follows the color scheme if window_frame is unchanged (theme-switcher)
+        let (saysdf_strip_bg, saysdf_strip_fg) =
+            crate::termwindow::saysdf_bars::titlebar_colors(&self.config, self.focused.is_some());
         let bar_colors = ElementColors {
             border: BorderColor::default(),
-            bg: if self.focused.is_some() {
-                self.config.window_frame.active_titlebar_bg
-            } else {
-                self.config.window_frame.inactive_titlebar_bg
-            }
-            .to_linear()
-            .into(),
-            text: if self.focused.is_some() {
-                self.config.window_frame.active_titlebar_fg
-            } else {
-                self.config.window_frame.inactive_titlebar_fg
-            }
-            .to_linear()
-            .into(),
+            bg: saysdf_strip_bg.into(),
+            text: saysdf_strip_fg.into(),
         };
         let tab_vertical_alignment = if self.config.tab_bar_at_bottom {
             VerticalAlign::Top

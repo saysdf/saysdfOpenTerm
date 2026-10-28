@@ -252,7 +252,20 @@ pub trait Pane: Downcast + Send + Sync {
     /// a zoom-to-fill-all-the-tab-space operation.
     fn set_zoomed(&self, _zoomed: bool) {}
     fn key_down(&self, key: KeyCode, mods: KeyModifiers) -> anyhow::Result<()>;
+    // saysdfTerminal: layout-independent-keys — key_down with the physical key; default ignores it (D4)
+    fn saysdf_key_down_phys(
+        &self,
+        key: KeyCode,
+        mods: KeyModifiers,
+        _phys: Option<config::saysdf_keys::Key>,
+    ) -> anyhow::Result<()> {
+        self.key_down(key, mods)
+    }
     fn key_up(&self, key: KeyCode, mods: KeyModifiers) -> anyhow::Result<()>;
+    // saysdfTerminal: prompt-suggest — typed prompt input for suggestions; default none (D2)
+    fn saysdf_prompt_input(&self) -> Option<wezterm_term::saysdf_input::PromptInput> {
+        None
+    }
     fn perform_assignment(&self, _assignment: &KeyAssignment) -> PerformAssignmentResult {
         PerformAssignmentResult::Unhandled
     }

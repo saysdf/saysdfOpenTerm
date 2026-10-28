@@ -18,7 +18,11 @@ fn unwrap_arg<T>(a: &Option<T>) -> Result<&T, WinError> {
     }
 }
 
-fn show_notif_impl(toast: TN) -> Result<(), Box<dyn std::error::Error>> {
+// saysdfTerminal: on_activate - click callback (change command-notifications D4)
+fn show_notif_impl(
+    toast: TN,
+    on_activate: Option<crate::ActivationCallback>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let xml = XmlDocument::new()?;
 
     let url_actions = if toast.url.is_some() {
@@ -61,6 +65,11 @@ fn show_notif_impl(toast: TN) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
+            // saysdfTerminal: click on toast -> callback (tab focus), change command-notifications D4
+            if let Some(cb) = on_activate.as_ref() {
+                cb();
+            }
+
             Ok(())
         },
     ))?;
@@ -87,11 +96,20 @@ fn show_notif_impl(toast: TN) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn show_notif(notif: TN) -> Result<(), Box<dyn std::error::Error>> {
+    // saysdfTerminal: shared path with the activation callback (change command-notifications D4)
+    show_notif_with_activation(notif, None)
+}
+
+// saysdfTerminal: show with an optional activation callback (change command-notifications D4)
+pub fn show_notif_with_activation(
+    notif: TN,
+    on_activate: Option<crate::ActivationCallback>,
+) -> Result<(), Box<dyn std::error::Error>> {
     // We need to be in a different thread from the caller
     // in case we get called in the guts of a windows message
     // loop dispatch and are unable to pump messages
     std::thread::spawn(move || {
-        if let Err(err) = show_notif_impl(notif) {
+        if let Err(err) = show_notif_impl(notif, on_activate) {
             log::error!("Failed to show toast notification: {:#}", err);
         }
     });

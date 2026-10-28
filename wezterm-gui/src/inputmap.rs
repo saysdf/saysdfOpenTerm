@@ -28,9 +28,11 @@ impl InputMap {
         let mut keys = config.key_bindings();
 
         let leader = config.leader.as_ref().map(|leader| {
+            // saysdfTerminal: layout-independent-keys — leader follows the physical key in Physical mode
+            let (key, mods) = leader.key.saysdf_resolve(config.key_map_preference, (leader.key.key.resolve(config.key_map_preference).clone(), leader.key.mods));
             (
-                leader.key.key.resolve(config.key_map_preference).clone(),
-                leader.key.mods,
+                key,
+                mods,
                 Duration::from_millis(leader.timeout_milliseconds),
             )
         });
@@ -377,10 +379,12 @@ impl InputMap {
 
         keys.by_name
             .entry("copy_mode".to_string())
-            .or_insert_with(crate::overlay::copy::copy_key_table);
+            // saysdfTerminal: layout-independent-keys — physical twins of default copy/search mode keys
+            .or_insert_with(|| config::saysdf_physical_twins(config.key_map_preference, crate::overlay::copy::copy_key_table()));
         keys.by_name
             .entry("search_mode".to_string())
-            .or_insert_with(crate::overlay::copy::search_key_table);
+            // saysdfTerminal: layout-independent-keys
+            .or_insert_with(|| config::saysdf_physical_twins(config.key_map_preference, crate::overlay::copy::search_key_table()));
 
         Self {
             keys,

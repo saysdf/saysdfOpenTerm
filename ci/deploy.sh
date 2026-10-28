@@ -28,10 +28,7 @@ case $OSTYPE in
     fi
     rm -rf $zipdir $zipname
     mkdir $zipdir
-    cp -r assets/macos/WezTerm.app $zipdir/
-    # Omit MetalANGLE for now; it's a bit laggy compared to CGL,
-    # and on M1/Big Sur, CGL is implemented in terms of Metal anyway
-    rm $zipdir/WezTerm.app/*.dylib
+    cp -r assets/macos/saysdfTerm.app $zipdir/WezTerm.app
     mkdir -p $zipdir/WezTerm.app/Contents/MacOS
     mkdir -p $zipdir/WezTerm.app/Contents/Resources
     cp -r assets/shell-integration/* $zipdir/WezTerm.app/Contents/Resources
@@ -119,12 +116,7 @@ case $OSTYPE in
       $TARGET_DIR/release/wezterm.pdb \
       assets/windows/conhost/conpty.dll \
       assets/windows/conhost/OpenConsole.exe \
-      assets/windows/angle/libEGL.dll \
-      assets/windows/angle/libGLESv2.dll \
       $zipdir
-    mkdir $zipdir/mesa
-    cp $TARGET_DIR/release/mesa/opengl32.dll \
-        $zipdir/mesa
     7z a -tzip $zipname $zipdir
     iscc.exe -DMyAppVersion=${TAG_NAME#nightly} -F${instname} ci/windows-installer.iss
     ;;
@@ -249,7 +241,7 @@ install -Dm644 assets/shell-integration/* -t %{buildroot}/etc/profile.d
 install -Dm644 assets/shell-completion/zsh %{buildroot}/usr/share/zsh/site-functions/_wezterm
 install -Dm644 assets/shell-completion/bash %{buildroot}/etc/bash_completion.d/wezterm
 install -Dm644 assets/icon/terminal.png %{buildroot}/usr/share/icons/hicolor/128x128/apps/org.wezfurlong.wezterm.png
-install -Dm644 assets/wezterm.desktop %{buildroot}/usr/share/applications/org.wezfurlong.wezterm.desktop
+install -Dm644 assets/saysdfTerm.desktop %{buildroot}/usr/share/applications/org.wezfurlong.wezterm.desktop
 install -Dm644 assets/wezterm.appdata.xml %{buildroot}/usr/share/metainfo/org.wezfurlong.wezterm.appdata.xml
 install -Dm644 assets/wezterm-nautilus.py %{buildroot}/usr/share/nautilus-python/extensions/wezterm-nautilus.py
 
@@ -349,7 +341,7 @@ EOF
         cat pkg/debian/DEBIAN/control
 
         install -Dm644 assets/icon/terminal.png pkg/debian/usr/share/icons/hicolor/128x128/apps/org.wezfurlong.wezterm.png
-        install -Dm644 assets/wezterm.desktop pkg/debian/usr/share/applications/org.wezfurlong.wezterm.desktop
+        install -Dm644 assets/saysdfTerm.desktop pkg/debian/usr/share/applications/org.wezfurlong.wezterm.desktop
         install -Dm644 assets/wezterm.appdata.xml pkg/debian/usr/share/metainfo/org.wezfurlong.wezterm.appdata.xml
         install -Dm644 assets/wezterm-nautilus.py pkg/debian/usr/share/nautilus-python/extensions/wezterm-nautilus.py
         install -Dm644 assets/shell-completion/bash pkg/debian/usr/share/bash-completion/completions/wezterm
@@ -405,7 +397,7 @@ source="
   $TARGET_DIR/release/wezterm-gui
   $TARGET_DIR/release/wezterm-mux-server
   assets/open-wezterm-here
-  assets/wezterm.desktop
+  assets/saysdfTerm.desktop
   assets/wezterm.appdata.xml
   assets/icon/terminal.png
   assets/icon/wezterm-icon.svg
@@ -423,7 +415,7 @@ package() {
   install -Dm755 -t "\$pkgdir"/usr/bin "\$srcdir"/wezterm-gui
   install -Dm755 -t "\$pkgdir"/usr/bin "\$srcdir"/wezterm-mux-server
 
-  install -Dm644 -t "\$pkgdir"/usr/share/applications "\$srcdir"/wezterm.desktop
+  install -Dm644 -t "\$pkgdir"/usr/share/applications "\$srcdir"/saysdfTerm.desktop
   install -Dm644 -t "\$pkgdir"/usr/share/metainfo "\$srcdir"/wezterm.appdata.xml
   install -Dm644 "\$srcdir"/terminal.png "\$pkgdir"/usr/share/pixmaps/wezterm.png
   install -Dm644 "\$srcdir"/wezterm-icon.svg "\$pkgdir"/usr/share/pixmaps/wezterm.svg

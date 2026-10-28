@@ -124,3 +124,311 @@ fn kitty_frame_edit_keeps_the_stored_hash_current() {
 
     assert_ne!(edited_hash, transmitted_hash);
 }
+
+// saysdfTerminal: inline-graphics — tests for iTerm2/Sixel, image limits, kitty transfer media
+
+/// Test config with adjustable image limits.
+#[derive(Debug)]
+struct LimitConfig {
+    max_pixels: u32,
+    kitty_budget: usize,
+    allow_files: bool,
+}
+
+impl Default for LimitConfig {
+    fn default() -> Self {
+        Self {
+            max_pixels: 7680 * 4320,
+            kitty_budget: 320 * 1024 * 1024,
+            allow_files: false,
+        }
+    }
+}
+
+impl TerminalConfiguration for LimitConfig {
+    fn color_palette(&self) -> ColorPalette {
+        ColorPalette::default()
+    }
+    fn enable_kitty_graphics(&self) -> bool {
+        true
+    }
+    fn max_image_pixels(&self) -> u32 {
+        self.max_pixels
+    }
+    fn kitty_image_memory_budget(&self) -> usize {
+        self.kitty_budget
+    }
+    fn allow_kitty_file_transfer(&self) -> bool {
+        self.allow_files
+    }
+}
+
+/// Collects what the terminal writes back to the pty.
+#[derive(Clone, Default)]
+struct Replies(Arc<Mutex<Vec<u8>>>);
+
+impl std::io::Write for Replies {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Replies {
+    fn text(&self) -> String {
+        String::from_utf8_lossy(&self.0.lock().unwrap()).to_string()
+    }
+
+    /// Replies reach the writer from another thread: wait for a complete APC reply.
+    fn wait_apc(&self) -> String {
+        let start = std::time::Instant::now();
+        loop {
+            let text = self.text();
+            if text.ends_with("\x1b\\") || start.elapsed() > std::time::Duration::from_secs(2) {
+                return text;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+}
+
+/// 24x80 terminal, 8x16 pixel cells.
+fn limit_term(config: LimitConfig, replies: Replies) -> Terminal {
+    Terminal::new(
+        TerminalSize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 80 * 8,
+            pixel_height: 24 * 16,
+            dpi: 0,
+        },
+        Arc::new(config),
+        "WezTerm",
+        "O_o",
+        Box::new(replies),
+    )
+}
+
+/// All distinct image data attached to visible cells.
+fn images_in(term: &Terminal) -> Vec<Arc<ImageData>> {
+    let mut out: Vec<Arc<ImageData>> = vec![];
+    for line in term.screen().visible_lines().iter() {
+        for cell in line.visible_cells() {
+            if let Some(images) = cell.attrs().images() {
+                for im in images {
+                    let data = im.image_data();
+                    if !out.iter().any(|o| Arc::ptr_eq(o, data)) {
+                        out.push(Arc::clone(data));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// A real PNG of `w`x`h` pixels, encoded with the `image` crate.
+fn tiny_png(w: u32, h: u32) -> Vec<u8> {
+    let img = ::image::RgbaImage::from_pixel(w, h, ::image::Rgba([10, 20, 30, 255]));
+    let mut out = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut out, ::image::ImageFormat::Png).unwrap();
+    out.into_inner()
+}
+
+fn crc32(data: &[u8]) -> u32 {
+    let mut crc = 0xffff_ffffu32;
+    for &b in data {
+        crc ^= b as u32;
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 {
+                (crc >> 1) ^ 0xedb8_8320
+            } else {
+                crc >> 1
+            };
+        }
+    }
+    !crc
+}
+
+/// A PNG with only the signature and IHDR (claims `w`x`h`, carries no pixel data).
+fn png_header_only(w: u32, h: u32) -> Vec<u8> {
+    let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+    let mut chunk = b"IHDR".to_vec();
+    chunk.extend_from_slice(&w.to_be_bytes());
+    chunk.extend_from_slice(&h.to_be_bytes());
+    chunk.extend_from_slice(&[8, 6, 0, 0, 0]);
+    out.extend_from_slice(&13u32.to_be_bytes());
+    out.extend_from_slice(&chunk);
+    out.extend_from_slice(&crc32(&chunk).to_be_bytes());
+    out
+}
+
+/// Standard base64 (the test crate has no base64 dependency).
+fn b64(data: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in data.chunks(3) {
+        let n = (chunk[0] as u32) << 16
+            | (*chunk.get(1).unwrap_or(&0) as u32) << 8
+            | *chunk.get(2).unwrap_or(&0) as u32;
+        for i in 0..4 {
+            if i <= chunk.len() {
+                out.push(T[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+fn iterm_seq(args: &str, png: &[u8]) -> String {
+    format!("\x1b]1337;File=inline=1{}:{}\x07", args, b64(png))
+}
+
+#[test]
+fn saysdf_b64_matches_known_value() {
+    k9::assert_equal!(b64(b"Man"), "TWFu".to_string());
+    k9::assert_equal!(b64(b"Ma"), "TWE=".to_string());
+    k9::assert_equal!(b64(b"M"), "TQ==".to_string());
+}
+
+#[test]
+fn iterm2_small_png_is_attached() {
+    let mut term = limit_term(LimitConfig::default(), Replies::default());
+    term.advance_bytes(iterm_seq("", &tiny_png(2, 2)).as_bytes());
+    k9::assert_equal!(images_in(&term).len(), 1);
+}
+
+#[test]
+fn sixel_small_image_is_attached() {
+    let mut term = limit_term(LimitConfig::default(), Replies::default());
+    // color 0 = red, two sixel columns of 6 pixels
+    term.advance_bytes(b"\x1bPq#0;2;100;0;0#0~~\x1b\\");
+    k9::assert_equal!(images_in(&term).len(), 1);
+}
+
+#[test]
+fn iterm2_huge_png_header_is_rejected() {
+    let mut term = limit_term(LimitConfig::default(), Replies::default());
+    term.advance_bytes(iterm_seq("", &png_header_only(20000, 20000)).as_bytes());
+    term.advance_bytes(b"ok");
+    assert!(images_in(&term).is_empty());
+    let mut expect = vec!["ok"];
+    expect.resize(24, "");
+    assert_visible_contents(&term, file!(), line!(), &expect);
+}
+
+#[test]
+fn max_image_pixels_from_config() {
+    let png = tiny_png(1200, 1000);
+    let mut small = limit_term(
+        LimitConfig {
+            max_pixels: 1_000_000,
+            ..Default::default()
+        },
+        Replies::default(),
+    );
+    small.advance_bytes(iterm_seq("", &png).as_bytes());
+    assert!(images_in(&small).is_empty());
+
+    let mut default = limit_term(LimitConfig::default(), Replies::default());
+    default.advance_bytes(iterm_seq("", &png).as_bytes());
+    k9::assert_equal!(images_in(&default).len(), 1);
+}
+
+/// Fuzzing found that `width=99999;height=auto` stretched an 11x11 PNG over ~99999x50000
+/// cells and hung the terminal; now the placement is refused quickly.
+#[test]
+fn iterm2_huge_cell_width_is_refused_quickly() {
+    let start = std::time::Instant::now();
+    let mut term = limit_term(LimitConfig::default(), Replies::default());
+    term.advance_bytes(iterm_seq(";width=99999;height=auto", &tiny_png(11, 11)).as_bytes());
+    term.advance_bytes(b"ok");
+    assert!(images_in(&term).is_empty());
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
+#[test]
+fn kitty_huge_cell_count_is_refused_quickly() {
+    let start = std::time::Instant::now();
+    let mut term = limit_term(LimitConfig::default(), Replies::default());
+    let seq = format!(
+        "\x1b_Ga=T,t=d,f=32,s=2,v=2,c=99999,r=99999;{}\x1b\\",
+        TINY_RGBA_BASE64
+    );
+    term.advance_bytes(seq.as_bytes());
+    assert!(images_in(&term).is_empty());
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
+#[test]
+fn kitty_memory_budget_refuses_image_that_does_not_fit() {
+    // one 2x2 RGBA image is 16 bytes; the budget fits one, not two
+    let mut term = limit_term(
+        LimitConfig {
+            kitty_budget: 24,
+            ..Default::default()
+        },
+        Replies::default(),
+    );
+    term.advance_bytes(
+        format!("\x1b_Ga=T,t=d,f=32,s=2,v=2,i=1;{}\x1b\\", TINY_RGBA_BASE64).as_bytes(),
+    );
+    k9::assert_equal!(images_in(&term).len(), 1);
+    // different pixels, so the image cache does not dedupe it
+    let other = b64(&[0xff, 0, 0, 0xff, 0, 0xff, 0, 0xff, 0, 0, 0xff, 0xff, 1, 1, 1, 0xff]);
+    term.advance_bytes(format!("\x1b_Ga=T,t=d,f=32,s=2,v=2,i=2;{}\x1b\\", other).as_bytes());
+    let images = images_in(&term);
+    k9::assert_equal!(images.len(), 1);
+    k9::assert_equal!(images[0].len(), 16);
+}
+
+fn kitty_file_query(config: LimitConfig, path: &str) -> String {
+    let replies = Replies::default();
+    let mut term = limit_term(config, replies.clone());
+    let seq = format!("\x1b_Ga=q,i=31,t=f;{}\x1b\\", b64(path.as_bytes()));
+    term.advance_bytes(seq.as_bytes());
+    replies.wait_apc()
+}
+
+#[test]
+fn kitty_file_transfer_is_denied_by_default_without_revealing_files() {
+    let existing = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+    let missing = concat!(env!("CARGO_MANIFEST_DIR"), "/definitely-missing-file");
+    let ok = kitty_file_query(LimitConfig::default(), existing);
+    let err = kitty_file_query(LimitConfig::default(), missing);
+    // the reply must not depend on whether the file exists
+    k9::assert_equal!(ok.clone(), err);
+    assert!(ok.contains("EPERM"), "{:?}", ok);
+
+    // t=t and t=s are refused the same way, and nothing is displayed
+    for medium in ["t", "s"] {
+        let replies = Replies::default();
+        let mut term = limit_term(LimitConfig::default(), replies.clone());
+        let seq = format!(
+            "\x1b_Ga=T,i=32,t={medium},f=100;{}\x1b\\",
+            b64(existing.as_bytes())
+        );
+        term.advance_bytes(seq.as_bytes());
+        let text = replies.wait_apc();
+        assert!(text.contains("EPERM"), "t={} {:?}", medium, text);
+        assert!(images_in(&term).is_empty());
+    }
+}
+
+#[test]
+fn kitty_file_transfer_works_when_allowed() {
+    let existing = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+    let reply = kitty_file_query(
+        LimitConfig {
+            allow_files: true,
+            ..Default::default()
+        },
+        existing,
+    );
+    assert!(reply.contains(";OK"), "{:?}", reply);
+}

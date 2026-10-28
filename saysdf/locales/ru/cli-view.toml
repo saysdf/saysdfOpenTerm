@@ -1,0 +1,53 @@
+# Russian catalog of `saysdf view`, `saysdf md` and `saysdf mermaid`
+# (saysdf/cli/src/cmd/view.rs, md.rs, mermaid.rs).
+
+# ---- Shared: opening a file ----
+"this is a folder, not a file" = "это папка, а не файл"
+"file not found" = "файл не найден"
+"no permission to read" = "нет прав на чтение"
+"the file is larger than 16 MiB" = "файл больше 16 МиБ"
+# `saysdf view` is a command name, keep it.
+"the file is larger than 16 MiB, open it with `saysdf view`" = "файл больше 16 МиБ — откройте через `saysdf view`"
+
+# ---- Status line (shown until the next key press) ----
+"reloaded" = "перечитано"
+# {status} is the viewer status (syntax name, zoom, ...).
+"reloaded; {status}" = "перечитано; {status}"
+# {error} is the system error text.
+"read error: {error}" = "ошибка чтения: {error}"
+"binary file: hex view" = "бинарный файл: hex-вид"
+"large file: no highlighting or search" = "большой файл: без подсветки и поиска"
+"error" = "ошибка"
+# Last line of the error screen; the key stays as it is.
+"q to quit" = "q — выход"
+
+# ---- Markdown preview ----
+"Tab to select a link" = "Tab — выбрать ссылку"
+# {anchor} is the part of a link after #.
+"no heading #{anchor}" = "нет заголовка #{anchor}"
+# {url} is a link target; external links are only shown.
+"link (not opened): {url}" = "ссылка (не открывается): {url}"
+"history is empty" = "история пуста"
+"last heading" = "последний заголовок"
+"first heading" = "первый заголовок"
+# {i}/{n} is the link number and the link count.
+"link {i}/{n}: {url}  (Enter to open)" = "ссылка {i}/{n}: {url}  (Enter — открыть)"
+"no links" = "ссылок нет"
+# {name} is the zoom level: compact, normal or spacious.
+"mermaid zoom: {name}" = "зум mermaid: {name}"
+"images: captions only (terminal without OSC 1337)" = "картинки: только подписи (терминал без OSC 1337)"
+
+# ---- Mermaid preview ----
+# {name} is the zoom level: compact, normal or spacious.
+"zoom: {name} (+/- , z to reset)" = "зум: {name} (+/- , z — сброс)"
+"zoom: {name} (limit)" = "зум: {name} (предел)"
+# Command line error for --zoom.
+"expected compact, normal or spacious" = "ожидалось compact, normal или spacious"
+
+# ---- Command line messages ----
+"saysdf view: stdout is not a terminal" = "saysdf view: stdout не терминал"
+"saysdf view: terminal: {error}" = "saysdf view: терминал: {error}"
+"saysdf md: stdout is not a terminal" = "saysdf md: stdout не терминал"
+"saysdf md: terminal: {error}" = "saysdf md: терминал: {error}"
+"saysdf help: terminal: {error}" = "saysdf help: терминал: {error}"
+"saysdf mermaid: terminal: {error}" = "saysdf mermaid: терминал: {error}"

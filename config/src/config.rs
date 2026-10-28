@@ -48,6 +48,9 @@ use wezterm_input_types::{
 };
 use wezterm_term::TerminalSize;
 
+// saysdfTerminal: bundled-lua-modules — chunk name of the bundled default config
+const BUNDLED_DEFAULT_CONFIG_NAME: &str = "saysdf-bundled:default_config.lua";
+
 #[derive(Debug, Clone, FromDynamic, ToDynamic, ConfigMeta)]
 pub struct Config {
     /// The font size, measured in points
@@ -255,6 +258,17 @@ pub struct Config {
 
     #[dynamic(default = "default_true")]
     pub enable_kitty_graphics: bool,
+
+    // saysdfTerminal: inline-graphics — image limits and kitty transfer media
+    /// Max width*height (pixels) of an inline image (kitty, iTerm2, Sixel).
+    #[dynamic(default = "default_max_image_pixels")]
+    pub max_image_pixels: u32,
+    /// Max bytes of stored kitty image data; over it new images are refused.
+    #[dynamic(default = "default_kitty_image_memory_budget")]
+    pub kitty_image_memory_budget: usize,
+    /// Allow kitty t=f/t=t/t=s (local file / shared memory named by program output).
+    #[dynamic(default)]
+    pub allow_kitty_file_transfer: bool,
     #[dynamic(default)]
     pub enable_kitty_keyboard: bool,
 
@@ -867,7 +881,8 @@ pub struct Config {
     #[dynamic(default)]
     pub cell_widths: Option<Vec<CellWidth>>,
 
-    #[dynamic(default = "default_true")]
+    /// saysdfTerminal: off by default so remote programs can't drop files
+    #[dynamic(default)]
     pub allow_download_protocols: bool,
 
     #[dynamic(default = "default_true")]
@@ -1025,30 +1040,20 @@ impl Config {
         // multiple.  In addition, it spawns a lot of subprocesses,
         // so we do this bit "by-hand"
 
-        let mut paths = vec![PathPossibility::optional(HOME_DIR.join(".wezterm.lua"))];
-        for dir in CONFIG_DIRS.iter() {
-            paths.push(PathPossibility::optional(dir.join("wezterm.lua")))
-        }
-
-        if cfg!(windows) {
-            // On Windows, a common use case is to maintain a thumb drive
-            // with a set of portable tools that don't need to be installed
-            // to run on a target system.  In that scenario, the user would
-            // like to run with the config from their thumbdrive because
-            // either the target system won't have any config, or will have
-            // the config of another user.
-            // So we prioritize that here: if there is a config in the same
-            // dir as the executable that will take precedence.
-            if let Ok(exe_name) = std::env::current_exe() {
-                if let Some(exe_dir) = exe_name.parent() {
-                    paths.insert(0, PathPossibility::optional(exe_dir.join("wezterm.lua")));
-                }
-            }
-        }
-        if let Some(path) = std::env::var_os("WEZTERM_CONFIG_FILE") {
-            log::trace!("Note: WEZTERM_CONFIG_FILE is set in the environment");
-            paths.insert(0, PathPossibility::required(path.into()));
-        }
+        // saysdfTerminal: rebrand — own config names; WEZTERM_CONFIG_FILE is ignored
+        let exe = std::env::current_exe().ok();
+        let mut paths: Vec<PathPossibility> = saysdf_identity::config_file_candidates(
+            &HOME_DIR,
+            &CONFIG_DIRS,
+            exe.as_deref().and_then(Path::parent),
+            std::env::var_os(saysdf_identity::CONFIG_FILE_ENV).map(PathBuf::from),
+        )
+        .into_iter()
+        .map(|(path, required)| match required {
+            true => PathPossibility::required(path),
+            false => PathPossibility::optional(path),
+        })
+        .collect();
 
         if let Some(path) = CONFIG_FILE_OVERRIDE.lock().unwrap().as_ref() {
             log::trace!("Note: config file override is set");
@@ -1077,8 +1082,32 @@ impl Config {
         // We didn't find (or were asked to skip) a wezterm.lua file, so
         // update the environment to make it simpler to understand this
         // state.
-        std::env::remove_var("WEZTERM_CONFIG_FILE");
-        std::env::remove_var("WEZTERM_CONFIG_DIR");
+        // saysdfTerminal: rebrand — only our vars; WEZTERM_CONFIG_* is never exported,
+        // so an official WezTerm started from saysdfTerm won't pick up our config.
+        std::env::remove_var(saysdf_identity::CONFIG_FILE_ENV);
+        std::env::remove_var(saysdf_identity::CONFIG_DIR_ENV);
+
+        // saysdfTerminal: bundled-lua-modules — no config file: run the bundled default
+        // config (all saysdf modules); on error log it and fall back to try_default().
+        if !CONFIG_SKIP.load(Ordering::Relaxed) {
+            match Self::try_load_source(
+                BUNDLED_DEFAULT_CONFIG_NAME,
+                None,
+                saysdf_lua_bundle::default_config(),
+                overrides,
+            ) {
+                Ok(loaded) => {
+                    log::debug!("loaded bundled default config {BUNDLED_DEFAULT_CONFIG_NAME}");
+                    return loaded;
+                }
+                Err(err) => {
+                    log::error!(
+                        "bundled default config {BUNDLED_DEFAULT_CONFIG_NAME} failed, \
+                         using built-in defaults: {err:#}"
+                    );
+                }
+            }
+        }
 
         match Self::try_default() {
             Err(err) => LoadedConfig {
@@ -1121,7 +1150,19 @@ impl Config {
 
         let mut s = String::new();
         file.read_to_string(&mut s)?;
-        let lua = make_lua_context(p)?;
+        // saysdfTerminal: bundled-lua-modules — the rest moved to try_load_source() unchanged
+        Self::try_load_source(&p.to_string_lossy(), Some(p), &s, overrides).map(Some)
+    }
+
+    // saysdfTerminal: bundled-lua-modules — body of try_load() after reading the file;
+    // `path` is None for the bundled default config (no file: no env vars, no file_name).
+    fn try_load_source(
+        name: &str,
+        path: Option<&Path>,
+        s: &str,
+        overrides: &wezterm_dynamic::Value,
+    ) -> anyhow::Result<LoadedConfig> {
+        let lua = make_lua_context(path.unwrap_or(Path::new("")))?;
 
         let (config, warnings) =
             wezterm_dynamic::Error::capture_warnings(|| -> anyhow::Result<Config> {
@@ -1132,7 +1173,7 @@ impl Config {
                     // file. Note that we can't catch this happening for files that are
                     // imported via the lua require function.
                     lua.load(s.trim_start_matches('\u{FEFF}'))
-                        .set_name(p.to_string_lossy())
+                        .set_name(name)
                         .eval_async(),
                 )?;
                 let config = Config::apply_overrides_to(&lua, config)?;
@@ -1140,7 +1181,7 @@ impl Config {
                 cfg = Config::from_lua(config, &lua).with_context(|| {
                     format!(
                         "Error converting lua value returned by script {} to Config struct",
-                        p.display()
+                        name
                     )
                 })?;
                 cfg.check_consistency()?;
@@ -1149,20 +1190,23 @@ impl Config {
                 // problems earlier than we use them.
                 let _ = cfg.key_bindings();
 
-                std::env::set_var("WEZTERM_CONFIG_FILE", p);
-                if let Some(dir) = p.parent() {
-                    std::env::set_var("WEZTERM_CONFIG_DIR", dir);
+                // saysdfTerminal: rebrand — export only SAYSDFTERM_CONFIG_*, not WEZTERM_CONFIG_*
+                if let Some(p) = path {
+                    std::env::set_var(saysdf_identity::CONFIG_FILE_ENV, p);
+                    if let Some(dir) = p.parent() {
+                        std::env::set_var(saysdf_identity::CONFIG_DIR_ENV, dir);
+                    }
                 }
                 Ok(cfg)
             });
         let cfg = config?;
 
-        Ok(Some(LoadedConfig {
-            config: Ok(cfg.compute_extra_defaults(Some(p))),
-            file_name: Some(p.to_path_buf()),
+        Ok(LoadedConfig {
+            config: Ok(cfg.compute_extra_defaults(path)),
+            file_name: path.map(Path::to_path_buf),
             lua: Some(lua),
             warnings,
-        }))
+        })
     }
 
     pub(crate) fn apply_overrides_obj_to<'l>(
@@ -1288,6 +1332,8 @@ impl Config {
                 .key
                 .resolve(self.key_map_preference)
                 .normalize_shift(k.key.mods);
+            // saysdfTerminal: layout-independent-keys — Physical: uppercase/shifted punctuation keep SHIFT
+            let (key, mods) = k.key.saysdf_resolve(self.key_map_preference, (key, mods));
             tables.default.insert(
                 (key, mods),
                 KeyTableEntry {
@@ -1304,6 +1350,8 @@ impl Config {
                     .key
                     .resolve(self.key_map_preference)
                     .normalize_shift(k.key.mods);
+                // saysdfTerminal: layout-independent-keys — Physical: uppercase/shifted punctuation keep SHIFT
+                let (key, mods) = k.key.saysdf_resolve(self.key_map_preference, (key, mods));
                 table.insert(
                     (key, mods),
                     KeyTableEntry {
@@ -1624,7 +1672,8 @@ impl Config {
 }
 
 fn default_check_for_updates() -> bool {
-    cfg!(not(feature = "distro-defaults"))
+    // saysdfTerminal: no network calls unless the user opts in
+    false
 }
 
 fn default_pane_select_fg_color() -> RgbaColor {
@@ -1757,27 +1806,37 @@ fn default_font_size() -> f64 {
 }
 
 pub(crate) fn compute_cache_dir() -> anyhow::Result<PathBuf> {
+    // saysdfTerminal: with SAYSDFTERM_DATA_DIR set, the cache (wezterm-blob-lease-*) lives inside it,
+    // so test runs do not write into the user's folder (perf-2).
+    if let Some(dir) = std::env::var_os("SAYSDFTERM_DATA_DIR").filter(|v| !v.is_empty()) {
+        return Ok(PathBuf::from(dir).join("cache"));
+    }
     if let Some(runtime) = dirs_next::cache_dir() {
-        return Ok(runtime.join("wezterm"));
+        return Ok(runtime.join(saysdf_identity::APP_NAME)); // saysdfTerminal: rebrand
     }
 
-    Ok(crate::HOME_DIR.join(".local/share/wezterm"))
+    Ok(crate::HOME_DIR.join(".local/share").join(saysdf_identity::APP_NAME)) // saysdfTerminal: rebrand
 }
 
 pub(crate) fn compute_data_dir() -> anyhow::Result<PathBuf> {
+    // saysdfTerminal: isolated data folder for test runs (saysdf/tools/screenshot.ps1);
+    // the same variable is read by saysdf.util.data_dir().
+    if let Some(dir) = std::env::var_os("SAYSDFTERM_DATA_DIR").filter(|v| !v.is_empty()) {
+        return Ok(PathBuf::from(dir));
+    }
     if let Some(runtime) = dirs_next::data_dir() {
-        return Ok(runtime.join("wezterm"));
+        return Ok(runtime.join(saysdf_identity::APP_NAME)); // saysdfTerminal: rebrand
     }
 
-    Ok(crate::HOME_DIR.join(".local/share/wezterm"))
+    Ok(crate::HOME_DIR.join(".local/share").join(saysdf_identity::APP_NAME)) // saysdfTerminal: rebrand
 }
 
 pub(crate) fn compute_runtime_dir() -> anyhow::Result<PathBuf> {
     if let Some(runtime) = dirs_next::runtime_dir() {
-        return Ok(runtime.join("wezterm"));
+        return Ok(runtime.join(saysdf_identity::APP_NAME)); // saysdfTerminal: rebrand
     }
 
-    Ok(crate::HOME_DIR.join(".local/share/wezterm"))
+    Ok(crate::HOME_DIR.join(".local/share").join(saysdf_identity::APP_NAME)) // saysdfTerminal: rebrand
 }
 
 pub fn pki_dir() -> anyhow::Result<PathBuf> {
@@ -2211,4 +2270,40 @@ fn default_macos_forward_mods() -> Modifiers {
 
 fn default_colr_rasterizer() -> FontRasterizerSelection {
     FontRasterizerSelection::Harfbuzz
+}
+
+// saysdfTerminal: bundled-lua-modules
+#[cfg(test)]
+mod saysdf_bundled_test {
+    use super::*;
+
+    #[test]
+    fn bundled_default_config_loads() {
+        let overrides = wezterm_dynamic::Value::default();
+        let loaded = Config::try_load_source(
+            BUNDLED_DEFAULT_CONFIG_NAME,
+            None,
+            saysdf_lua_bundle::default_config(),
+            &overrides,
+        )
+        .expect("bundled default config");
+        assert!(loaded.config.is_ok());
+        assert!(loaded.file_name.is_none());
+        let lua = loaded.lua.expect("lua context");
+        // the bundled searcher is installed in the config lua context
+        let ty: String = lua
+            .load(r#"return type(require("saysdf").setup)"#)
+            .eval()
+            .expect("require saysdf");
+        assert_eq!(ty, "function");
+    }
+}
+
+// saysdfTerminal: inline-graphics — defaults for the image limits
+fn default_max_image_pixels() -> u32 {
+    7680 * 4320
+}
+
+fn default_kitty_image_memory_budget() -> usize {
+    320 * 1024 * 1024
 }

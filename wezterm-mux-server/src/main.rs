@@ -16,6 +16,8 @@ mod daemonize;
 
 #[derive(Debug, Parser)]
 #[command(
+    // saysdfTerminal: rebrand — --version/--help show the binary name, not the package name
+    name = env!("CARGO_BIN_NAME"),
     about = "Wez's Terminal Emulator\nhttp://github.com/wezterm/wezterm",
     version = config::wezterm_version(),
     trailing_var_arg = true,

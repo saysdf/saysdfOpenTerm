@@ -37,6 +37,8 @@ wezterm-dynamic = {workspace = true, features=["std"]}
 wezterm-cell = {workspace = true, features=["std", "use_image"]}
 wezterm-escape-parser = {workspace = true, features=["std", "use_image"]}
 wezterm-surface = {workspace = true, features=["std", "appdata", "use_image"]}
+# saysdfTerminal: rebrand
+saysdf-identity = { path = "../saysdf/identity" }
 
 [dev-dependencies]
 env_logger.workspace = true

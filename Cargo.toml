@@ -16,6 +16,23 @@ members = [
   "wezterm-ssh",
   "wezterm-surface",
   "wezterm-uds",
+  # saysdfTerminal: rebrand
+  "saysdf/identity",
+  # saysdfTerminal: bundled-lua-modules
+  "saysdf/lua-bundle",
+  # saysdfTerminal: stage 2-3 skeleton crates (render, cli, secrets, db)
+  "saysdf/render",
+  "saysdf/cli",
+  "saysdf/secrets",
+  "saysdf/db",
+  # saysdfTerminal: parser-fuzzing
+  "saysdf/fuzz-support",
+  # saysdfTerminal: layout-independent-keys
+  "saysdf/keys",
+  # saysdfTerminal: prompt-suggest
+  "saysdf/hints",
+  # saysdfTerminal: i18n
+  "saysdf/i18n",
 ]
 resolver = "2"
 exclude = [
@@ -33,6 +50,9 @@ opt-level = 3
 #split-debuginfo = "unpacked"
 
 [workspace.dependencies]
+# saysdfTerminal: code-viewer (design D10) — TUI render deps for saysdf/render, saysdf/cli
+ratatui = {version="0.30", default-features=false}
+syntect = {version="5.2", default-features=false, features=["default-fancy"]}
 ahash = "0.8"
 anyhow = "1.0"
 assert_fs = "1.0.4"
@@ -279,6 +299,8 @@ zstd = "0.11"
 zvariant = "4.0"
 
 [patch.crates-io]
+# saysdfTerminal: layout-independent-keys — vendored crossterm with base-layout key (security-reviews/2026-10-19-crossterm-vendor.md)
+crossterm = { path = "saysdf/vendor/crossterm" }
 # We use our own vendored cairo, which has minimal deps and should just
 # build via cargo.
 cairo-sys-rs = {path="deps/cairo", version="0.18.0"}

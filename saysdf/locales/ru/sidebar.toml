@@ -1,0 +1,20 @@
+# Russian catalog of saysdf.sidebar (saysdf/lua/saysdf/sidebar.lua).
+
+# Default title of the sidebar picker when the caller gives none.
+"Choose" = "Выбор"
+
+# Toast; shown when the sidebar key is pressed before any tool was opened.
+"Sidebar: no tool has been opened yet" = "Боковая панель: инструмент ещё не открывался"
+
+# Menu "View" and command palette
+"Sidebar" = "Боковая панель"
+"Sidebar: last tool" = "Боковая панель: последний инструмент"
+
+# Test entry (option test_entry), menu "View" and command palette
+"Sidebar test" = "Тест боковой панели"
+# Test picker items; the third label is deliberately long to check truncation.
+"First item" = "Первый пункт"
+"Second item" = "Второй пункт"
+"Third item: a long label to check truncation" = "Третий пункт: длинная подпись для проверки обрезки"
+# Toast after choosing an item in the test picker; {id} is the item id.
+"Sidebar: chosen {id}" = "Боковая панель: выбрано {id}"

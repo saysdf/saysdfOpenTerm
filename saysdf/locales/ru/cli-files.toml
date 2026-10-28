@@ -1,0 +1,68 @@
+# Russian catalog of `saysdf files` (saysdf/cli/src/files/*.rs).
+
+# ---- Status line and key hints ----
+# Key hints on the bottom line; one line, shortened to the terminal width. Keys stay as they are.
+"Enter open  ←→ collapse/expand  Bksp up  / filter  . hidden  o cwd  y path  n/N create  r rename  d delete  p pin  q quit" = "Enter открыть  ←→ свернуть/раскрыть  Bksp вверх  / фильтр  . скрытые  o cwd  y путь  n/N создать  r переим.  d удалить  p закрепить  q выход"
+# Status messages (shown until the next key press).
+"GUI actions are only available in the saysdfTerm sidebar" = "действия GUI — только в боковой панели saysdfTerm"
+"path copied" = "путь скопирован"
+"opening pane…" = "открываю панель…"
+"opening viewer…" = "открываю просмотр…"
+"a link to a folder is not expanded (o — open as cwd)" = "ссылка на папку не раскрывается (o — открыть как cwd)"
+"root pinned" = "корень закреплён"
+"root follows the pane" = "корень следует за панелью"
+"reloaded" = "перечитано"
+"no access to the folder" = "нет доступа к папке"
+"created: {path}" = "создано: {path}"
+"renamed" = "переименовано"
+"deletion cancelled" = "удаление отменено"
+"deleted: {path}" = "удалено: {path}"
+# Top line flags; keep the leading space.
+" [pinned]" = " [закр.]"
+# Tree row suffix for a folder that cannot be read; keep the leading space.
+" (no access)" = " (нет доступа)"
+# Empty tree messages; keep the two leading spaces.
+"  (empty)" = "  (пусто)"
+"  (no matches)" = "  (нет совпадений)"
+# Bottom line while a filter is applied; keep the leading space.
+" filter: {text}  (Esc to clear)" = " фильтр: {text}  (Esc — сбросить)"
+
+# ---- Forms ----
+# Input field labels.
+"Name" = "Имя"
+"New name" = "Новое имя"
+"Folder name" = "Имя папки"
+# Form titles; {dir}/{path} is a path.
+"Create folder in {dir}" = "Создать папку в {dir}"
+"Create file in {dir}" = "Создать файл в {dir}"
+"Rename {path}" = "Переименовать {path}"
+
+# ---- Deletion. Safety-critical: keep the meaning exactly. ----
+# Confirmation questions; {path} is on the second line.
+"Permanently delete the link (the target is not touched)?\n{path}" = "Удалить ссылку (цель не трогается) безвозвратно?\n{path}"
+"Permanently delete the file?\n{path}" = "Удалить файл безвозвратно?\n{path}"
+"Permanently delete the empty folder?\n{path}" = "Удалить пустую папку безвозвратно?\n{path}"
+"Permanently delete the folder WITH ALL ITS CONTENTS?\n{path}" = "Удалить папку СО ВСЕМ СОДЕРЖИМЫМ безвозвратно?\n{path}"
+# Extra step for a non-empty folder: the user must type its exact name.
+"The folder is not empty. Type its name to delete it: {name}" = "Папка не пуста. Введите её имя для удаления: {name}"
+
+# ---- Tree ----
+# Last row of a folder with more than 10 000 entries; keep the leading ellipsis.
+"…truncated" = "…обрезано"
+
+# ---- Name validation and operation errors. Shown under the input field or in the status line. ----
+"empty name" = "пустое имя"
+"invalid name" = "недопустимое имя"
+"the name must not contain / \\ or control characters" = "имя не должно содержать / \\ и управляющие символы"
+"invalid character in the name" = "недопустимый символ в имени"
+# Refusal to overwrite; {name} is the requested name.
+"“{name}” already exists" = "«{name}» уже существует"
+"no parent folder" = "нет родительской папки"
+"the temporary name is taken" = "временное имя занято"
+# Deletion refusals. Safety-critical: keep the meaning exactly.
+"the folder is no longer empty — repeat the deletion" = "папка уже не пуста — повторите удаление"
+"the item has changed — repeat the deletion" = "элемент изменился — повторите удаление"
+"the name does not match — deletion cancelled" = "имя не совпало — удаление отменено"
+# Refusal to act outside the browser root (symlink / ".." protection).
+"the path must be absolute and without .." = "путь должен быть абсолютным и без .."
+"outside the browser root" = "вне корня браузера"
