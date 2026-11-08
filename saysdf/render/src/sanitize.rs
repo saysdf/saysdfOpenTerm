@@ -69,6 +69,46 @@ pub fn str_width(s: &str) -> usize {
     s.chars().map(char_width).sum()
 }
 
+/// Display cell range `[start, end)` of every grapheme of `s` as drawn by [`visible_line`]
+/// (same tab, placeholder and wide-char rules: this is `push_visible` run per grapheme).
+pub fn grapheme_cells(s: &str, tab_width: usize) -> impl Iterator<Item = (usize, usize)> + '_ {
+    use unicode_segmentation::UnicodeSegmentation;
+    let mut col = 0;
+    let mut scratch = String::new();
+    s.graphemes(true).map(move |g| {
+        let start = col;
+        scratch.clear();
+        push_visible(&mut scratch, g, &mut col, tab_width);
+        (start, col)
+    })
+}
+
+/// Grapheme index of the source line `s` drawn at display cell `col` of its `visible_line`.
+/// Any cell of a wide character, an expanded tab or an invisible-char placeholder maps to that
+/// grapheme; zero-width graphemes own no cell; a column past the end gives the grapheme count.
+pub fn col_to_grapheme(s: &str, tab_width: usize, col: usize) -> usize {
+    let mut n = 0;
+    for (i, (start, end)) in grapheme_cells(s, tab_width).enumerate() {
+        if col >= start && col < end {
+            return i;
+        }
+        n = i + 1;
+    }
+    n
+}
+
+/// First display cell of grapheme `idx` of `s`; an index past the end gives the line width.
+pub fn grapheme_to_col(s: &str, tab_width: usize, idx: usize) -> usize {
+    let mut end = 0;
+    for (i, (start, e)) in grapheme_cells(s, tab_width).enumerate() {
+        if i == idx {
+            return start;
+        }
+        end = e;
+    }
+    end
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +149,42 @@ mod tests {
         // "中" takes 2 cells: the tab after it pads up to 4
         assert_eq!(visible_line("中\tx", 4), "中  x");
         assert_eq!(str_width("中文a"), 5);
+    }
+
+    #[test]
+    fn column_grapheme_mapping() {
+        // ASCII
+        assert_eq!(col_to_grapheme("abc", 4, 1), 1);
+        assert_eq!(col_to_grapheme("abc", 4, 3), 3);
+        assert_eq!(col_to_grapheme("abc", 4, 99), 3);
+        assert_eq!(col_to_grapheme("", 4, 0), 0);
+        // Cyrillic
+        assert_eq!(col_to_grapheme("привет", 4, 2), 2); // i18n-allow-cyrillic
+        assert_eq!(grapheme_to_col("привет", 4, 3), 3); // i18n-allow-cyrillic
+        // wide CJK / emoji: both cells -> same grapheme
+        assert_eq!(col_to_grapheme("a世b", 4, 1), 1);
+        assert_eq!(col_to_grapheme("a世b", 4, 2), 1);
+        assert_eq!(col_to_grapheme("a世b", 4, 3), 2);
+        assert_eq!(grapheme_to_col("a世b", 4, 2), 3);
+        assert_eq!(col_to_grapheme("😀x", 4, 1), 0);
+        assert_eq!(col_to_grapheme("😀x", 4, 2), 1);
+        // tab expansion
+        assert_eq!(col_to_grapheme("a\tb", 4, 0), 0);
+        for c in 1..4 {
+            assert_eq!(col_to_grapheme("a\tb", 4, c), 1);
+        }
+        assert_eq!(col_to_grapheme("a\tb", 4, 4), 2);
+        assert_eq!(grapheme_to_col("a\tb", 4, 2), 4);
+        // invisible char shown as an escape: several cells -> one grapheme
+        let s = "a\u{202E}b";
+        let w = str_width(&visible_line(s, 4));
+        assert_eq!(grapheme_to_col(s, 4, 2), w - 1);
+        for c in 1..w - 1 {
+            assert_eq!(col_to_grapheme(s, 4, c), 1);
+        }
+        assert_eq!(col_to_grapheme(s, 4, w - 1), 2);
+        // past the end -> line end; combining mark stays in its grapheme
+        assert_eq!(col_to_grapheme("e\u{301}x", 4, 1), 1);
+        assert_eq!(grapheme_to_col("abc", 4, 10), 3);
     }
 }

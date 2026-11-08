@@ -136,7 +136,9 @@ impl Content for MermaidContent {
     }
 }
 
-pub fn run(args: MermaidArgs) -> i32 {
+/// `saysdf mermaid` inside the dispatcher ([`crate::control::dispatch`]): every control request
+/// (this content has no in-place open) is left in `s.next` and restarts the subcommand.
+pub fn run_in(args: MermaidArgs, s: &mut crate::control::Session) -> i32 {
     let abs = std::path::absolute(&args.path).unwrap_or_else(|_| args.path.clone());
     let title = visible_line(&abs.to_string_lossy(), DEFAULT_TAB_WIDTH);
     let src = match read_src(&abs) {
@@ -168,8 +170,12 @@ pub fn run(args: MermaidArgs) -> i32 {
     let (lines, anchors, status) = build(&src, &opts);
     let content = MermaidContent { path: abs.clone(), src, opts, doc: Doc::from_lines(lines), anchors, view: (0, 0, 24, 80) };
     let popts = pager::Options { path: Some(abs), title, line: None, col: 1, editor, watch: true, status };
-    match pager::run(content, popts) {
-        Ok(()) => 0,
+    match pager::run_ctl(content, popts, s.control(crate::control::Sub::Mermaid)) {
+        Ok(pager::Exit::Quit) => 0,
+        Ok(pager::Exit::Switch(req)) => {
+            s.next = Some(req);
+            0
+        }
         Err(e) => {
             eprintln!("{}", I18N.f("saysdf mermaid: terminal: {error}", &[("error", &e.to_string())]));
             1

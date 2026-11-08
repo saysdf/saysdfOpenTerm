@@ -1,7 +1,8 @@
 //! Connection metadata `ssh-connections.json` (design D4): `{ alias: {title, description, group, color} }`.
 //! Foreign entries are preserved; writing is temp file + rename. There are no secrets here.
 
-use super::{check_text, write_atomic, Result};
+use super::{check_text, Result};
+use crate::fsutil::write_atomic;
 use serde_json::{Map, Value};
 use std::fs;
 use std::io;

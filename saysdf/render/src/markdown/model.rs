@@ -22,6 +22,19 @@ pub enum Inline {
     SoftBreak,
     HardBreak,
     Image { alt: String, url: String },
+    /// Text of a CriticMarkup mark, or the raw markers of a mark that cannot be styled in place.
+    Critic(CriticPart, String),
+}
+
+/// Role of a piece of CriticMarkup text in the rendered view (styles: `crate::critic::style`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CriticPart {
+    Deleted,
+    Inserted,
+    Highlighted,
+    Comment,
+    /// Visible markers of a mark that spans blocks.
+    RawMarkup,
 }
 
 /// List item: `task` is `Some(checked)` for task lists.
@@ -69,7 +82,7 @@ pub fn plain_text(inlines: &[Inline]) -> String {
     fn walk(i: &[Inline], s: &mut String) {
         for x in i {
             match x {
-                Inline::Text(t) | Inline::Code(t) => s.push_str(t),
+                Inline::Text(t) | Inline::Code(t) | Inline::Critic(_, t) => s.push_str(t),
                 Inline::Emph(v) | Inline::Strong(v) | Inline::Strike(v) => walk(v, s),
                 Inline::Link { text, .. } => walk(text, s),
                 Inline::SoftBreak | Inline::HardBreak => s.push(' '),

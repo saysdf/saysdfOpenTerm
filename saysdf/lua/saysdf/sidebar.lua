@@ -32,6 +32,7 @@
 --        test_entry = false (palette entry "Sidebar test" -- for checking by eye).
 
 local t = require("saysdf.i18n").domain("sidebar")
+local bridge = require("saysdf.bridge")
 
 local M = {}
 
@@ -54,8 +55,6 @@ local opts = nil
 local state = {} -- [tab_id] = { pane_id, tool, token, origin_pane_id, choices = { [id] = label }, on_result, used }
 local by_pane = {} -- [pane_id] = tab_id
 local last = nil -- the last tool: { tool, spec }
-local counter = 0
-local logged = {}
 local handler_registered = false
 
 local function wezterm()
@@ -83,24 +82,12 @@ function M.options()
   return opts or DISABLED
 end
 
-local function reject(reason)
-  if not logged[reason] then
-    logged[reason] = true
-    util().log_info("saysdf.sidebar: result rejected: " .. reason)
-  end
-  return false
-end
-
--- 32 hex: two hashes of the time, a counter and a table address. Not a secret from the user's own
--- processes, but a program in another pane cannot guess it, and it is one-time (D3).
+-- The token check, size limit, foreground check and once-per-reason logging live in saysdf.bridge
+-- (change text-annotations D7); this module keeps pane ownership and the allow-list.
 function M.new_token()
-  counter = counter + 1
-  local seed = table.concat({ tostring(os.time()), tostring(os.clock()), tostring(counter), tostring({}), tostring(math.random()) }, "|")
-  local u = util()
-  return (u.hash(seed) .. u.hash(seed .. "#" .. counter)):gsub("-", "")
+  return bridge.new_token()
 end
 
--- Width: `width`, but at most half of the tab; nil -- the tab is too narrow (fallback path).
 function M.width_for(tab_cols, o)
   o = o or M.options()
   local w = tonumber(o.width) or 40
@@ -489,21 +476,20 @@ function M.toggle_last(window, pane)
   end
 end
 
-local function fg_is_saysdf(p)
-  local ok, name = pcall(function()
-    return p:get_foreground_process_name_cached()
-  end)
-  if not ok or name == nil then
-    return nil
+-- Origin pane of a sidebar result: the recorded one, else the tab's active pane, else the sidebar.
+local function origin_of(st, tid, pane)
+  local origin = get_pane(st.origin_pane_id)
+  if origin == nil then
+    local okt, t = pcall(function()
+      return wezterm().mux.get_tab(tid)
+    end)
+    origin = okt and t and t:active_pane() or pane
   end
-  return util().process_basename(name) == M.BIN
+  return origin
 end
 
--- user-var-changed handler. true -- the result was accepted and executed.
-function M.handle_user_var(window, pane, name, value)
-  if name ~= M.VAR then
-    return false
-  end
+-- Check 1 (ownership): the record of this tab's sidebar, if `pane` is it.
+local function lookup(pane)
   local pid = pane_id(pane)
   if pid and by_pane[pid] == nil then
     local t = tab_of(pane)
@@ -512,77 +498,83 @@ function M.handle_user_var(window, pane, name, value)
   local tid = pid and by_pane[pid]
   local st = tid and state[tid]
   if not st or st.pane_id ~= pid then
-    return reject("not a sidebar pane")
+    return nil
   end
-  if type(value) ~= "string" or #value > M.MAX_VALUE then
-    return reject("length")
+  return st
+end
+
+local function tid_of(pane)
+  return by_pane[pane_id(pane)]
+end
+
+-- Allow-list (check 5 of the module header).
+local kinds = {}
+
+function kinds.pick(window, pane, st, payload)
+  if st.stale then
+    return nil, "callback lost (config reload)"
   end
-  local token, kind, payload = value:match("^([^:]*):([^:]*):(.*)$")
-  if not token then
-    return reject("format")
+  if payload ~= "" and (st.choices == nil or st.choices[payload] == nil) then
+    return nil, "id not in the list"
   end
-  if st.used or token ~= st.token then
-    return reject("token")
-  end
-  local fg = fg_is_saysdf(pane)
-  if fg ~= true then
-    return reject(fg == nil and "foreground not known yet" or "foreground is not saysdf")
-  end
-  local origin = get_pane(st.origin_pane_id)
-  if origin == nil then
-    local okt, t = pcall(function()
-      return wezterm().mux.get_tab(tid)
-    end)
-    origin = okt and t and t:active_pane() or pane
-  end
-  if kind == "pick" then
-    if st.stale then
-      return reject("callback lost (config reload)")
-    end
-    if payload ~= "" and (st.choices == nil or st.choices[payload] == nil) then
-      return reject("id not in the list")
-    end
-    st.used = true
-    persist(tid, st)
-    if st.on_result then
-      local ok, err = pcall(st.on_result, window, origin, "pick", payload)
-      if not ok then
-        util().log_error("saysdf.sidebar: " .. tostring(err))
-      end
-    end
-    return true
-  elseif kind == "action" then
-    local id, arg = payload:match("^([^:]+):?(.*)$")
-    local e = id and require("saysdf.palette").by_id(window, origin, id)
-    if not e or e.sidebar ~= true or type(e.accept) ~= "function" then
-      return reject("action not allowed")
-    end
-    local okv, valid = pcall(e.accept, arg)
-    if not okv or not valid then
-      return reject("argument rejected by accept")
-    end
-    if st.multi then
-      if st.last_value == value then
-        return reject("repeat")
-      end
-      st.last_value = value
-    else
-      st.used = true
-      persist(tid, st)
-    end
-    local ok, err = pcall(function()
-      if type(e.sidebar_run) == "function" then
-        e.sidebar_run(window, origin, arg)
-      else
-        window:perform_action(e.action, origin)
-      end
-    end)
+  local tid = tid_of(pane)
+  local origin = origin_of(st, tid, pane)
+  bridge.spend(st)
+  persist(tid, st)
+  if st.on_result then
+    local ok, err = pcall(st.on_result, window, origin, "pick", payload)
     if not ok then
       util().log_error("saysdf.sidebar: " .. tostring(err))
     end
-    return true
   end
-  return reject("kind")
+  return true
+end
+
+function kinds.action(window, pane, st, payload, value)
+  local tid = tid_of(pane)
+  local origin = origin_of(st, tid, pane)
+  local id, arg = payload:match("^([^:]+):?(.*)$")
+  local e = id and require("saysdf.palette").by_id(window, origin, id)
+  if not e or e.sidebar ~= true or type(e.accept) ~= "function" then
+    return nil, "action not allowed"
+  end
+  local okv, valid = pcall(e.accept, arg)
+  if not okv or not valid then
+    return nil, "argument rejected by accept"
+  end
+  local fresh, why = bridge.consume(st, value)
+  if not fresh then
+    return nil, why
+  end
+  if not st.multi then
+    persist(tid, st)
+  end
+  local ok, err = pcall(function()
+    if type(e.sidebar_run) == "function" then
+      e.sidebar_run(window, origin, arg)
+    else
+      window:perform_action(e.action, origin)
+    end
+  end)
+  if not ok then
+    util().log_error("saysdf.sidebar: " .. tostring(err))
+  end
+  return true
+end
+
+local channel = bridge.channel({
+  var = M.VAR,
+  name = "saysdf.sidebar",
+  lookup = lookup,
+  not_owned = "not a sidebar pane",
+  max = M.MAX_VALUE,
+  bin = M.BIN,
+  kinds = kinds,
+})
+
+-- user-var-changed handler. true -- the result was accepted and executed.
+function M.handle_user_var(window, pane, name, value)
+  return channel.handle(window, pane, name, value)
 end
 
 function M.test_choices()
@@ -642,7 +634,8 @@ function M._reset()
   for tid in pairs(state) do
     persist(tid, nil)
   end
-  opts, state, by_pane, last, counter, logged, handler_registered = nil, {}, {}, nil, 0, {}, false
+  opts, state, by_pane, last, handler_registered = nil, {}, {}, nil, false
+  channel.reset()
 end
 
 function M._state()

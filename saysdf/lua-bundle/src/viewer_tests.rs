@@ -21,6 +21,7 @@ fn lua() -> Lua {
     let modules: Modules = Box::leak(
         vec![
             ("saysdf", get("saysdf").unwrap()),
+            ("saysdf.bridge", get("saysdf.bridge").unwrap()),
             ("saysdf.i18n", get("saysdf.i18n").unwrap()),
             ("saysdf.palette", get("saysdf.palette").unwrap()),
             ("saysdf.paths", get("saysdf.paths").unwrap()),
@@ -176,4 +177,90 @@ fn open_image_uses_imgcat_hold() {
         s(&l, "return tostring(viewer.is_image('a.webp')) .. tostring(viewer.is_image('a.rs'))"),
         "truefalse"
     );
+}
+
+// change text-annotations L-2 (D6): reuse of the neighbouring viewer split
+const REUSE: &str = r#"
+    written = {}
+    activated = nil
+    splits = {}
+    next_id = 10
+    panes = {}
+    tab = { tab_id = function() return 7 end }
+    function mk(id, fg)
+      local p = { id = id, fg = fg,
+        pane_id = function(self) return self.id end,
+        tab = function() return tab end,
+        get_domain_name = function() return 'local' end,
+        get_foreground_process_name_cached = function(self) return self.fg end,
+        activate = function(self) activated = self.id end,
+        split = function(self, a) next_id = next_id + 1 table.insert(splits, a) return mk(next_id, '/b/saysdf') end }
+      panes[id] = p
+      return p
+    end
+    src = mk(1, 'claude.exe')
+    package.loaded.wezterm.mux = { get_pane = function(id) return panes[id] end }
+    package.loaded.wezterm.json_encode = function(t)
+      return string.format('%s|%s|%s|%s', t.subcommand, t.path, tostring(t.line), tostring(t.col)) end
+    util.write_atomic = function(p, text) written[p] = text return true end
+    util.ensure_dir = function() end
+    package.loaded.wezterm.GLOBAL = {}
+    viewer.setup({ bin = '/b/saysdf' }, {})
+"#;
+
+#[test]
+fn reuse_alive_viewer_writes_control_file_and_focuses() {
+    let l = lua();
+    l.load(REUSE).exec().unwrap();
+    l.load("viewer.open(nil, src, '/p/a.rs', 3, 4)").exec().unwrap();
+    assert_eq!(s(&l, "return #splits .. tostring(splits[1].set_environment_variables.SAYSDF_VIEWER_TOKEN):len()"), "132");
+    l.load("viewer.open(nil, src, '/p/ch01.md', 10, nil)").exec().unwrap();
+    // no second split, focus went to the viewer pane (id 11), control file named by the token
+    assert_eq!(s(&l, "return tostring(#splits) .. tostring(activated)"), "111");
+    assert_eq!(
+        s(&l, "local n, body for k, v in pairs(written) do n, body = k, v end return n:match('viewer.%x+%.json$') and body"),
+        "md|/p/ch01.md|10|nil"
+    );
+    let tok = s(&l, "return splits[1].set_environment_variables.SAYSDF_VIEWER_TOKEN");
+    assert!(s(&l, "local n for k in pairs(written) do n = k end return n").contains(&tok));
+}
+
+#[test]
+fn splits_when_viewer_dead_not_saysdf_or_is_source() {
+    let l = lua();
+    l.load(REUSE).exec().unwrap();
+    l.load("viewer.open(nil, src, '/p/a.rs')").exec().unwrap();
+    // viewer pane closed -> new split and a new record
+    l.load("panes[11] = nil viewer.open(nil, src, '/p/b.rs')").exec().unwrap();
+    assert_eq!(s(&l, "return #splits .. (next(written) and 'w' or 'n')"), "2n");
+    // viewer pane now runs a shell -> split again
+    l.load("panes[12].fg = 'pwsh.exe' viewer.open(nil, src, '/p/c.rs')").exec().unwrap();
+    assert_eq!(s(&l, "return tostring(#splits)"), "3");
+    // the source pane is itself the viewer -> split, not self-write
+    l.load("viewer.open(nil, panes[13], '/p/d.rs')").exec().unwrap();
+    assert_eq!(s(&l, "return #splits .. (next(written) and 'w' or 'n')"), "4n");
+}
+
+#[test]
+fn ctrl_click_path_open_inherits_reuse() {
+    let l = lua();
+    l.load(REUSE).exec().unwrap();
+    l.load("viewer.open(nil, src, '/p/a.rs')").exec().unwrap();
+    l.load("require('saysdf.paths').open(nil, src, '/p/b.rs', 5)").exec().unwrap();
+    assert_eq!(s(&l, "return tostring(#splits)"), "1");
+}
+
+#[test]
+fn registry_survives_reload_and_viewer_record_lookup() {
+    let l = lua();
+    l.load(REUSE).exec().unwrap();
+    l.load("viewer.open(nil, src, '/p/a.rs')").exec().unwrap();
+    // config reload: a new module instance, the record comes back from wezterm.GLOBAL
+    l.load("package.loaded['saysdf.viewer'] = nil viewer = require('saysdf.viewer') viewer.setup({ bin = '/b/saysdf' }, {}) viewer.open(nil, src, '/p/b.md', 2)")
+        .exec()
+        .unwrap();
+    assert_eq!(s(&l, "return #splits .. tostring(activated)"), "111");
+    // viewer_record: the viewer pane has a record, the source pane does not
+    assert_eq!(s(&l, "return tostring(viewer.viewer_record(panes[11]).token == splits[1].set_environment_variables.SAYSDF_VIEWER_TOKEN)"), "true");
+    assert_eq!(s(&l, "return tostring(viewer.viewer_record(src))"), "nil");
 }

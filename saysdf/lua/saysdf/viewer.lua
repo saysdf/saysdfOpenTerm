@@ -163,6 +163,101 @@ local function resolve(pane, path)
   return nil
 end
 
+-- Registry of viewer panes per tab (change text-annotations, D6): [tab_id] = { pane_id, tab_id, token, subcommand }.
+M.TOKEN_ENV = "SAYSDF_VIEWER_TOKEN"
+
+local function call(obj, name)
+  local ok, v = pcall(function()
+    return obj[name](obj)
+  end)
+  return ok and v or nil
+end
+-- Kept in wezterm.GLOBAL (one serializable record per tab, as saysdf.sidebar does) so that it
+-- survives a config reload; a plain table is the fallback when GLOBAL is unavailable.
+local fallback = {}
+
+local function reg_get(tab_id)
+  local ok, g = pcall(function()
+    return wezterm().GLOBAL
+  end)
+  if ok and g then
+    local okr, r = pcall(function()
+      return g["saysdf_viewer_" .. tostring(tab_id)]
+    end)
+    if okr and r and r.pane_id then
+      return { pane_id = r.pane_id, tab_id = r.tab_id, token = r.token, subcommand = r.subcommand, multi = true }
+    end
+    return nil
+  end
+  return fallback[tab_id]
+end
+
+local function reg_set(tab_id, rec)
+  local ok, g = pcall(function()
+    return wezterm().GLOBAL
+  end)
+  if ok and g then
+    pcall(function()
+      g["saysdf_viewer_" .. tostring(tab_id)] = rec
+        and { pane_id = rec.pane_id, tab_id = rec.tab_id, token = rec.token, subcommand = rec.subcommand }
+        or nil
+    end)
+    return
+  end
+  fallback[tab_id] = rec
+end
+
+-- The record of the viewer pane `pane` (nil: it is not a viewer opened by this module).
+function M.viewer_record(pane)
+  local tab = call(pane, "tab")
+  local tid = tab and call(tab, "tab_id")
+  local rec = tid ~= nil and reg_get(tid) or nil
+  if rec and rec.pane_id == call(pane, "pane_id") then
+    return rec
+  end
+  return nil
+end
+
+local function live_viewer(pane, tab_id)
+  local rec = reg_get(tab_id)
+  if not rec then
+    return nil
+  end
+  local ok, p = pcall(function()
+    return wezterm().mux.get_pane(rec.pane_id)
+  end)
+  local ptab = ok and p and call(p, "tab")
+  if not ptab or call(ptab, "tab_id") ~= tab_id then
+    reg_set(tab_id, nil)
+    return nil
+  end
+  if rec.pane_id == call(pane, "pane_id") then
+    return nil
+  end
+  -- unknown foreground (not cached yet) counts as "not a viewer": a new split is the safe fallback
+  if require("saysdf.bridge").foreground_is(p, "saysdf") ~= true then
+    return nil
+  end
+  return rec, p
+end
+
+-- Hands the file to the viewer pane through <runtime_dir>/viewer/<token>.json and focuses it.
+local function reuse(rec, vpane, sub, full, line, col)
+  local u = require("saysdf.util")
+  local dir = u.join(u.runtime_dir(), "viewer")
+  u.ensure_dir(dir)
+  local body = wezterm().json_encode({ subcommand = sub, path = full, line = line, col = col })
+  if not u.write_atomic(u.join(dir, rec.token .. ".json"), body) then
+    return false
+  end
+  rec.subcommand = sub
+  reg_set(rec.tab_id, rec)
+  pcall(function()
+    vpane:activate()
+  end)
+  return true
+end
+
 function M.open(window, pane, path, line, col)
   if type(path) ~= "string" or path == "" then
     return false
@@ -179,7 +274,14 @@ function M.open(window, pane, path, line, col)
     notify(window, t("unknown pane folder: {path}", { path = path }))
     return false
   end
-  local args
+  local args, sub
+  local tab_id = call(call(pane, "tab") or {}, "tab_id")
+  if tab_id ~= nil and not M.is_image(full) and M.find_bin() then
+    local vrec, vpane = live_viewer(pane, tab_id)
+    if vrec and reuse(vrec, vpane, M.subcommand_for(full), full, line, col) then
+      return true
+    end
+  end
   if M.is_image(full) then
     local cli = state.opts.cli_bin
     if type(cli) ~= "string" or cli == "" then
@@ -196,11 +298,21 @@ function M.open(window, pane, path, line, col)
       notify(window, t("{name} not found (next to saysdfTerm or in PATH)", { name = "saysdf" }))
       return false
     end
-    local sub = M.subcommand_for(full)
+    sub = M.subcommand_for(full)
     args = M.build_args(bin, sub, full, line, col, state.opts.editor, M.subcommand_flags(sub, state.opts))
   end
   local sp = state.opts.split or {}
-  pane:split({ args = args, direction = sp.direction or "Right", size = sp.size or 0.5 })
+  local split = { args = args, direction = sp.direction or "Right", size = sp.size or 0.5 }
+  local token
+  if sub then
+    token = require("saysdf.bridge").new_token()
+    split.set_environment_variables = { [M.TOKEN_ENV] = token }
+  end
+  local newp = pane:split(split)
+  local nid = type(newp) == "table" and call(newp, "pane_id")
+  if token and tab_id ~= nil and nid then
+    reg_set(tab_id, { pane_id = nid, tab_id = tab_id, token = token, subcommand = sub, multi = true })
+  end
   return true
 end
 

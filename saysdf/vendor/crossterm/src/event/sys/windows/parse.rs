@@ -288,11 +288,34 @@ fn parse_key_event_record(key_event: &KeyEventRecord) -> Option<WindowsKeyEvent>
         } else {
             KeyEventKind::Release
         };
-        let key_event = KeyEvent::new_with_kind(key_code, modifiers, kind);
+        let base_layout = base_layout_for_vk(key_event.virtual_key_code); // saysdfTerminal: base-layout key
+        let mut key_event = KeyEvent::new_with_kind(key_code, modifiers, kind);
+        key_event.base_layout = base_layout; // saysdfTerminal: base-layout key
         return Some(WindowsKeyEvent::KeyEvent(key_event));
     }
 
     None
+}
+
+// saysdfTerminal: base-layout key: the US-layout character of a virtual key code, None if it has none
+fn base_layout_for_vk(vk: u16) -> Option<char> {
+    match vk {
+        0x20 => Some(' '),                                 // VK_SPACE
+        0x30..=0x39 => char::from_u32(vk as u32),          // '0'..'9'
+        0x41..=0x5A => char::from_u32(vk as u32 + 0x20),   // 'A'..'Z' -> 'a'..'z'
+        0xBA => Some(';'),                                 // VK_OEM_1
+        0xBB => Some('='),                                 // VK_OEM_PLUS
+        0xBC => Some(','),                                 // VK_OEM_COMMA
+        0xBD => Some('-'),                                 // VK_OEM_MINUS
+        0xBE => Some('.'),                                 // VK_OEM_PERIOD
+        0xBF => Some('/'),                                 // VK_OEM_2
+        0xC0 => Some('`'),                                 // VK_OEM_3
+        0xDB => Some('['),                                 // VK_OEM_4
+        0xDC => Some('\\'),                                // VK_OEM_5
+        0xDD => Some(']'),                                 // VK_OEM_6
+        0xDE => Some('\''),                                // VK_OEM_7
+        _ => None,
+    }
 }
 
 // The 'y' position of a mouse event or resize event is not relative to the window but absolute to screen buffer.
@@ -375,4 +398,40 @@ fn parse_mouse_event_record(
         row: ypos,
         modifiers,
     }))
+}
+
+// saysdfTerminal: base-layout key
+#[cfg(test)]
+mod tests {
+    use super::base_layout_for_vk;
+
+    #[test]
+    fn virtual_key_code_gives_us_layout_char() {
+        assert_eq!(base_layout_for_vk(0x52), Some('r')); // 'R', the К key on a Russian layout
+        assert_eq!(base_layout_for_vk(0x41), Some('a'));
+        assert_eq!(base_layout_for_vk(0x5A), Some('z'));
+        assert_eq!(base_layout_for_vk(0x30), Some('0'));
+        assert_eq!(base_layout_for_vk(0x39), Some('9'));
+        assert_eq!(base_layout_for_vk(0x20), Some(' '));
+        let oem = [
+            (0xBA, ';'),
+            (0xBB, '='),
+            (0xBC, ','),
+            (0xBD, '-'),
+            (0xBE, '.'),
+            (0xBF, '/'),
+            (0xC0, '`'),
+            (0xDB, '['),
+            (0xDC, '\\'),
+            (0xDD, ']'),
+            (0xDE, '\''),
+        ];
+        for (vk, c) in oem {
+            assert_eq!(base_layout_for_vk(vk), Some(c), "vk {vk:#x}");
+        }
+        // numpad, F-keys, arrows, modifiers, VK_OEM_102 and unassigned codes have none
+        for vk in [0x00, 0x10, 0x11, 0x12, 0x25, 0x60, 0x69, 0x70, 0xE2, 0x2F, 0x3A, 0x40, 0x5B, 0xFF] {
+            assert_eq!(base_layout_for_vk(vk), None, "vk {vk:#x}");
+        }
+    }
 }

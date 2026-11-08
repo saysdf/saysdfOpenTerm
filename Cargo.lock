@@ -5991,6 +5991,8 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "toml 0.8.23",
+ "unicode-segmentation",
+ "walkdir",
  "wezterm-input-types",
  "windows-sys 0.61.2",
 ]
@@ -6074,6 +6076,7 @@ dependencies = [
  "similar",
  "syntect",
  "tempfile",
+ "unicode-segmentation",
  "unicode-width",
 ]
 

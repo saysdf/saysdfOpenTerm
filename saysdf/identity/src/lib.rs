@@ -96,9 +96,109 @@ pub fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// Env var overriding the data dir (isolated test runs); Lua `saysdf.util.data_dir` honors it too.
+pub const DATA_DIR_ENV: &str = "SAYSDFTERM_DATA_DIR";
+
+/// OS family for the data/runtime dir rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OsFamily {
+    Windows,
+    MacOs,
+    Other,
+}
+
+impl OsFamily {
+    pub const CURRENT: Self = if cfg!(windows) {
+        Self::Windows
+    } else if cfg!(target_os = "macos") {
+        Self::MacOs
+    } else {
+        Self::Other
+    };
+}
+
+/// Data dir of the fork's modules, the same rules as Lua `saysdf.util.data_dir`:
+/// `$SAYSDFTERM_DATA_DIR`; Windows `%LOCALAPPDATA%` (or `%APPDATA%`, `~\AppData\Local`)`\saysdfTerm`;
+/// macOS `~/Library/Application Support/saysdfTerm`; else `$XDG_DATA_HOME/saysdfTerm` or
+/// `~/.local/share/saysdfTerm`.
+pub fn data_dir() -> Option<PathBuf> {
+    data_dir_for(OsFamily::CURRENT, &|k| std::env::var_os(k), home_dir())
+}
+
+/// Runtime dir of the fork's modules, the same rules as Lua `saysdf.util.runtime_dir`:
+/// `$XDG_RUNTIME_DIR/saysdfTerm` (not on Windows), else `<data_dir>/run`.
+pub fn runtime_dir() -> Option<PathBuf> {
+    runtime_dir_for(OsFamily::CURRENT, &|k| std::env::var_os(k), home_dir())
+}
+
+type Getenv<'a> = &'a dyn Fn(&str) -> Option<std::ffi::OsString>;
+
+fn env_nonempty(get: Getenv, key: &str) -> Option<PathBuf> {
+    get(key).filter(|v| !v.is_empty()).map(PathBuf::from)
+}
+
+pub fn data_dir_for(os: OsFamily, get: Getenv, home: Option<PathBuf>) -> Option<PathBuf> {
+    if let Some(dir) = env_nonempty(get, DATA_DIR_ENV) {
+        return Some(dir);
+    }
+    let base = match os {
+        // Lua takes the variables even when empty; an empty one is treated as unset here.
+        OsFamily::Windows => env_nonempty(get, "LOCALAPPDATA")
+            .or_else(|| env_nonempty(get, "APPDATA"))
+            .or_else(|| home.map(|h| h.join("AppData").join("Local")))?,
+        OsFamily::MacOs => home?.join("Library").join("Application Support"),
+        OsFamily::Other => {
+            env_nonempty(get, "XDG_DATA_HOME").or_else(|| home.map(|h| h.join(".local").join("share")))?
+        }
+    };
+    Some(base.join(APP_NAME))
+}
+
+pub fn runtime_dir_for(os: OsFamily, get: Getenv, home: Option<PathBuf>) -> Option<PathBuf> {
+    if os != OsFamily::Windows {
+        if let Some(xdg) = env_nonempty(get, "XDG_RUNTIME_DIR") {
+            return Some(xdg.join(APP_NAME));
+        }
+    }
+    Some(data_dir_for(os, get, home)?.join("run"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn runtime_dir_three_os() {
+        use std::ffi::OsString;
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| OsString::from(v))
+        };
+        let home = || Some(PathBuf::from("home"));
+        let win = env(&[("LOCALAPPDATA", "L"), ("XDG_RUNTIME_DIR", "X")]);
+        assert_eq!(
+            runtime_dir_for(OsFamily::Windows, &win, home()),
+            Some(PathBuf::from("L").join(APP_NAME).join("run"))
+        );
+        let none = env(&[]);
+        assert_eq!(
+            runtime_dir_for(OsFamily::Windows, &none, home()),
+            Some(PathBuf::from("home").join("AppData").join("Local").join(APP_NAME).join("run"))
+        );
+        let xdg = env(&[("XDG_RUNTIME_DIR", "X")]);
+        assert_eq!(runtime_dir_for(OsFamily::Other, &xdg, home()), Some(PathBuf::from("X").join(APP_NAME)));
+        assert_eq!(runtime_dir_for(OsFamily::MacOs, &xdg, home()), Some(PathBuf::from("X").join(APP_NAME)));
+        assert_eq!(
+            runtime_dir_for(OsFamily::MacOs, &none, home()),
+            Some(PathBuf::from("home").join("Library").join("Application Support").join(APP_NAME).join("run"))
+        );
+        assert_eq!(
+            runtime_dir_for(OsFamily::Other, &none, home()),
+            Some(PathBuf::from("home").join(".local").join("share").join(APP_NAME).join("run"))
+        );
+        let over = env(&[("SAYSDFTERM_DATA_DIR", "D"), ("XDG_RUNTIME_DIR", "")]);
+        assert_eq!(runtime_dir_for(OsFamily::Other, &over, home()), Some(PathBuf::from("D").join("run")));
+        assert_eq!(runtime_dir_for(OsFamily::Other, &none, None), None);
+    }
 
     fn fixture() -> (PathBuf, Vec<PathBuf>, PathBuf) {
         let home = PathBuf::from("home");

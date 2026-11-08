@@ -1,6 +1,7 @@
 //! pulldown-cmark events → block model (design D2). The line number comes from the byte offset
 //! given by `into_offset_iter`.
 
+use super::critic::Marks;
 use super::model::{plain_text, Align, Block, BlockKind, Doc, Inline, Item};
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 
@@ -22,6 +23,9 @@ enum Inl {
     Strike,
     Link(String),
     Image(String),
+    /// Strikethrough tag that is the hidden `~~` of a CriticMarkup substitution: its content goes
+    /// to the parent as is.
+    Flat,
 }
 
 struct Table {
@@ -96,6 +100,7 @@ pub fn parse(src: &str) -> Doc {
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_FOOTNOTES
         | Options::ENABLE_HEADING_ATTRIBUTES;
+    let marks = Marks::new(src, opts);
     let mut p = P {
         conts: vec![(Cont::Root, Vec::new())],
         inl: Vec::new(),
@@ -172,6 +177,7 @@ pub fn parse(src: &str) -> Doc {
                     Tag::TableCell => p.inl.push((Inl::Leaf, Vec::new())),
                     Tag::Emphasis => p.inl.push((Inl::Emph, Vec::new())),
                     Tag::Strong => p.inl.push((Inl::Strong, Vec::new())),
+                    Tag::Strikethrough if marks.hidden_at(range.start) => p.inl.push((Inl::Flat, Vec::new())),
                     Tag::Strikethrough => p.inl.push((Inl::Strike, Vec::new())),
                     Tag::Link { dest_url, .. } => {
                         p.ensure_leaf(line);
@@ -196,6 +202,12 @@ pub fn parse(src: &str) -> Doc {
                         Inl::Image(url) => Inline::Image { alt: plain_text(&v), url },
                         Inl::Leaf => {
                             p.inl.push((Inl::Leaf, v));
+                            continue;
+                        }
+                        Inl::Flat => {
+                            for x in v {
+                                p.push_inline(line, x);
+                            }
                             continue;
                         }
                     };
@@ -270,7 +282,9 @@ pub fn parse(src: &str) -> Doc {
                 } else if let Some((_, h)) = &mut p.html {
                     h.push_str(&t);
                 } else {
-                    p.push_inline(line, Inline::Text(t.to_string()));
+                    for i in marks.split(src, &t, range.clone()) {
+                        p.push_inline(line, i);
+                    }
                 }
             }
             Event::Code(t) => p.push_inline(line, Inline::Code(t.to_string())),

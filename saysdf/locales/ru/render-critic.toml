@@ -1,0 +1,14 @@
+# Russian catalog of the saysdf-render CriticMarkup model (saysdf/render/src/critic/annotate.rs).
+
+# Reasons an annotation is not written (shown in the viewer status line); {token} is a markup token like ~>
+"the selection is outside the text" = "выделение вне текста"
+"select some text first" = "сначала выделите текст"
+"the annotation text is empty" = "текст аннотации пуст"
+"the selection contains the markup token {token}" = "выделение содержит знак разметки {token}"
+"the text contains the markup token {token}" = "текст содержит знак разметки {token}"
+"annotations cannot overlap or nest" = "аннотации не могут пересекаться или вкладываться"
+"the selection touches the byte order mark" = "выделение задевает метку порядка байтов (BOM)"
+"the selection splits a line break" = "выделение разрывает перевод строки"
+"the annotation would conflict with the markup around it" = "аннотация конфликтует с разметкой рядом"
+"the annotation is no longer at this place in the text" = "аннотации уже нет на этом месте в тексте"
+"a deletion has no text to amend" = "у удаления нет текста для правки"

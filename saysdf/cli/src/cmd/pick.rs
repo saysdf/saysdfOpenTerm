@@ -32,12 +32,29 @@ pub(crate) struct PickContent {
     items: Vec<Item>,
     doc: Doc,
     token: Option<String>,
+    /// saysdf.palette sidebar-action id: the choice is sent as `action` `<id>:<item id>`
+    /// (`saysdf annotations`), not as `pick`.
+    action: Option<&'static str>,
+    /// Viewer launch (`annotations --result-file`): the choice is written here, nothing is sent.
+    result_file: Option<std::path::PathBuf>,
 }
 
 impl PickContent {
     pub(crate) fn new(items: Vec<Item>, token: Option<String>) -> Self {
         let doc = Doc::from_lines(items.iter().map(|i| Line::from(visible_line(&i.label, 4))).collect());
-        Self { items, doc, token }
+        Self { items, doc, token, action: None, result_file: None }
+    }
+
+    /// Sends the choice as a sidebar action (see the field).
+    pub(crate) fn with_action(mut self, action: &'static str) -> Self {
+        self.action = Some(action);
+        self
+    }
+
+    /// Writes the choice to `path` (atomically) instead of sending it.
+    pub(crate) fn with_result_file(mut self, path: std::path::PathBuf) -> Self {
+        self.result_file = Some(path);
+        self
     }
 
     /// id of the item on line `pos`.
@@ -46,10 +63,18 @@ impl PickContent {
     }
 
     /// Restores the terminal, sends the result and exits the process (the panel closes).
-    fn finish(token: Option<&str>, id: &str) -> ! {
+    fn finish(token: Option<&str>, action: Option<&str>, result_file: Option<&std::path::Path>, id: &str) -> ! {
         let _ = pager::suspend(|| {
-            if let Some(t) = token {
-                if let Err(e) = sidebar::send(t, "pick", id) {
+            if let Some(f) = result_file {
+                if let Err(e) = crate::fsutil::write_atomic(f, id.as_bytes(), true) {
+                    eprintln!("saysdf pick: {e}");
+                }
+            } else if let Some(t) = token {
+                let sent = match action {
+                    Some(a) => sidebar::send(t, "action", &format!("{a}:{id}")),
+                    None => sidebar::send(t, "pick", id),
+                };
+                if let Err(e) = sent {
                     eprintln!("saysdf pick: {e}");
                 }
             } else {
@@ -82,7 +107,7 @@ impl Content for PickContent {
         let last = self.items.len().saturating_sub(1);
         Ok(match k.code {
             KeyCode::Enter => match self.choose(pos) {
-                Some(id) => Self::finish(self.token.as_deref(), id),
+                Some(id) => Self::finish(self.token.as_deref(), self.action, self.result_file.as_deref(), id),
                 None => Nav::Status(I18N.t("empty").into_owned()),
             },
             KeyCode::Tab => Nav::Goto((pos + 1).min(last)),

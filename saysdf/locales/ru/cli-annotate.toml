@@ -1,0 +1,15 @@
+# Russian catalog of the annotation write session (saysdf/cli/src/annotate.rs).
+
+# Annotating unavailable (shown in the viewer status line)
+"large file: annotations are not available" = "большой файл: аннотации недоступны"
+"binary file: annotations are not available" = "двоичный файл: аннотации недоступны"
+"not a UTF-8 file: annotations are not available" = "файл не в UTF-8: аннотации недоступны"
+"not a regular file: annotations are not available" = "это не обычный файл: аннотации недоступны"
+
+# Write refused; the file is not modified
+"the file is read-only; annotation not saved" = "файл только для чтения; аннотация не сохранена"
+"the file no longer exists; annotation not saved" = "файла больше нет; аннотация не сохранена"
+"file changed on disk; reloaded, annotation not saved" = "файл изменён на диске; перечитан, аннотация не сохранена"
+# {error} is the system error text
+"cannot read the file: {error}" = "не удалось прочитать файл: {error}"
+"cannot write the file, it was left as it was: {error}" = "не удалось записать файл, он остался прежним: {error}"

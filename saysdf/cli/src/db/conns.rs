@@ -49,7 +49,7 @@ pub fn save(path: &Path, conns: &[ConnectionConfig]) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    crate::ssh::write_atomic(path, text.as_bytes(), true).map_err(|e| e.to_string())
+    crate::fsutil::write_atomic(path, text.as_bytes(), true).map_err(|e| e.to_string())
 }
 
 pub fn validate_id(id: &str) -> Result<(), String> {

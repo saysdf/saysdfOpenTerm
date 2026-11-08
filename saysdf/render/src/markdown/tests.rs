@@ -190,3 +190,82 @@ fn image_notes_follow_language() {
     let (en, _) = saysdf_i18n::load("en", None);
     assert_eq!(en.text("render-markdown", "remote image, not loaded", &[]), "remote image, not loaded");
 }
+
+// --- CriticMarkup in the rendered view (text-annotations D-2) ---
+
+fn cm(part: CriticPart, s: &str) -> Inline {
+    Inline::Critic(part, s.into())
+}
+
+fn para(src: &str) -> Vec<Inline> {
+    let d = parse(src);
+    let BlockKind::Paragraph(v) = &d.blocks[0].kind else { panic!("{:?}", d.blocks) };
+    v.clone()
+}
+
+#[test]
+fn critic_each_kind_in_cyrillic_paragraph() {
+    use CriticPart::*;
+    let v = para("Это {++новое++} и {--старое--}.\n"); // i18n-allow-cyrillic
+    assert_eq!(v, vec![text("Это "), cm(Inserted, "новое"), text(" и "), cm(Deleted, "старое"), text(".")]); // i18n-allow-cyrillic
+    let v = para("Кот {~~рыжий~>серый~~} спит\n"); // i18n-allow-cyrillic
+    assert_eq!(v, vec![text("Кот "), cm(Deleted, "рыжий"), cm(Inserted, "серый"), text(" спит")]); // i18n-allow-cyrillic
+    let v = para("{==слово==}{>>почему<<} и {>>заметка<<}\n"); // i18n-allow-cyrillic
+    assert_eq!(v, vec![cm(Highlighted, "слово"), cm(Comment, "почему"), text(" и "), cm(Comment, "заметка")]); // i18n-allow-cyrillic
+}
+
+#[test]
+fn critic_inside_list_item_and_emphasis() {
+    let d = parse("- a {++b++} c\n- d\n");
+    let BlockKind::List { items, .. } = &d.blocks[0].kind else { panic!("{:?}", d.blocks) };
+    assert_eq!(
+        items[0].blocks[0].kind,
+        BlockKind::Paragraph(vec![text("a "), cm(CriticPart::Inserted, "b"), text(" c")])
+    );
+    // Mark inside emphasis and emphasis inside a mark.
+    assert_eq!(para("*x {--y--}*\n"), vec![Inline::Emph(vec![text("x "), cm(CriticPart::Deleted, "y")])]);
+    assert_eq!(
+        para("{++a *b* c++}\n"),
+        vec![cm(CriticPart::Inserted, "a "), Inline::Emph(vec![cm(CriticPart::Inserted, "b")]), cm(CriticPart::Inserted, " c")]
+    );
+}
+
+#[test]
+fn critic_spanning_paragraphs_shows_raw_markers() {
+    let raw = |s: &str| cm(CriticPart::RawMarkup, s);
+    let d = parse("one {++two\n\nthree++} four\n");
+    assert_eq!(d.blocks[0].kind, BlockKind::Paragraph(vec![text("one "), raw("{++"), text("two")]));
+    assert_eq!(d.blocks[1].kind, BlockKind::Paragraph(vec![text("three"), raw("++}"), text(" four")]));
+    // Two list items: the same.
+    let d = parse("- a {--b\n- c--}\n");
+    let BlockKind::List { items, .. } = &d.blocks[0].kind else { panic!("{:?}", d.blocks) };
+    assert_eq!(items[0].blocks[0].kind, BlockKind::Paragraph(vec![text("a "), raw("{--"), text("b")]));
+}
+
+#[test]
+fn critic_inside_code_stays_literal() {
+    assert_eq!(para("x `{++y++}` z\n"), vec![text("x "), Inline::Code("{++y++}".into()), text(" z")]);
+    let d = parse("```\n{--keep--}\n```\n");
+    assert_eq!(d.blocks[0].kind, BlockKind::Code { lang: String::new(), text: "{--keep--}".into() });
+    // A code span inside a mark stays literal, the mark is styled around it.
+    assert_eq!(
+        para("{++a `b` c++}\n"),
+        vec![cm(CriticPart::Inserted, "a "), Inline::Code("b".into()), cm(CriticPart::Inserted, " c")]
+    );
+}
+
+#[test]
+fn critic_keeps_source_line_anchors_and_styles() {
+    let d = parse("# A\n\npara {++new++} {--old--}\n\n- x {==y==}\n");
+    assert_eq!(d.blocks[1].src_line, 3);
+    assert_eq!(d.blocks[2].src_line, 5);
+    let l = layout(&d, &opts(40));
+    assert_eq!(l.doc.line_text(l.doc.view_line(2)), "para new old");
+    assert_eq!(l.doc.line_text(l.doc.view_line(4)), "• x y");
+    let line = &l.doc.lines[l.doc.view_line(2)];
+    let styled = |st: ratatui::style::Style| -> String {
+        line.spans.iter().filter(|s| s.style == st).map(|s| s.content.to_string()).collect()
+    };
+    assert_eq!(styled(crate::critic::style::inserted()), "new");
+    assert_eq!(styled(crate::critic::style::deleted()), "old");
+}

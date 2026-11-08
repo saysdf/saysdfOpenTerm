@@ -1,0 +1,14 @@
+# Russian catalog of `saysdf annotations` (saysdf/cli/src/cmd/annotations.rs).
+
+# stderr: the argument is not a folder (after "saysdf annotations: <path>: ").
+"not a folder" = "не папка"
+# Status line: nothing found in the folder.
+"No annotations found" = "Аннотаций не найдено"
+# Hint line at the bottom; key names stay as they are.
+"↑↓ item, Enter open, / search, Esc cancel" = "↑↓ пункт, Enter открыть, / поиск, Esc отмена"
+# Hint line when the list was cut at a limit (files, entries or rows).
+"Cut at the limit; ↑↓ item, Enter open, / search, Esc cancel" = "Список обрезан по лимиту; ↑↓ пункт, Enter открыть, / поиск, Esc отмена"
+# Window title.
+"Annotations" = "Аннотации"
+# stderr after the TUI exits; {error} is the system error text.
+"terminal: {error}" = "терминал: {error}"

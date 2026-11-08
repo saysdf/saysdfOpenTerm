@@ -29,6 +29,31 @@ hints in the shell. Everything works in ordinary terminal panes, without separat
 - The startup banner closes with Esc, a click or the first input; to turn it off:
   `help = { banner = false }` in `saysdf.setup({...})`.
 
+## Viewer keys (`saysdf view`)
+
+Annotations are CriticMarkup written into the file itself (`{++add++}`, `{--cut--}`, `{~~old~>new~~}`,
+`{==mark==}{>>note<<}`); nothing else in the file is touched.
+
+Every command is a Ctrl combination and works by the physical key on any keyboard layout.
+
+- **Shift+arrows**, **Shift+Home/End**, **Shift+PgUp/PgDn** or a mouse drag — select text from the caret;
+  **Ctrl+Space** starts or clears selection mode at the caret. In selection mode the arrows (also
+  **Ctrl+Left/Right** by word, **Ctrl+Home/End** to the file start/end) move the caret, with Shift they
+  extend the selection. **Esc** clears the selection (it never quits from there).
+- On a selection: **Ctrl+R** replace, **Ctrl+D** delete (confirm with Enter), **Ctrl+N** insert,
+  **Ctrl+K** comment; the text is typed in the input line (Enter writes, Esc cancels).
+- **Alt+Down** / **Alt+Up** — next / previous annotation (the caret lands on it). The status line shows
+  how many annotations the file has.
+- On an annotation: **Ctrl+E** — change its text, **Ctrl+X** — remove it (confirm with Enter); the covered
+  text stays.
+- **Ctrl+L** — list of the annotations of the project folder (`saysdf annotations`); Enter on a row opens that
+  file at that line, Esc returns to the same place.
+- **Ctrl+G** — hand the file to the agent pane: a phrase with its path is pasted there without Enter (only in
+  a viewer opened by saysdfTerm).
+- **Ctrl+F** — diff of the file against `HEAD` (`saysdf diff`); after closing it you are back in the viewer.
+- **Ctrl+W** — soft wrap on or off (on by default for `.md`, `.markdown`, `.txt`).
+- Plain keys stay the pager's: arrows and PgUp/PgDn scroll, `/` search, `n` next match, `r` reload, `q` quit.
+
 ## Why it works this way
 
 - One command model: the palette, the menu and the hints show the same things — nothing gets lost.

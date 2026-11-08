@@ -2,7 +2,8 @@
 //! links, image slots. All texts pass through [`crate::sanitize`].
 
 use super::image::{self, ImageSource};
-use super::model::{plain_text, slug, Align, Block, BlockKind, Doc, Inline, Item};
+use super::model::{plain_text, slug, Align, Block, BlockKind, CriticPart, Doc, Inline, Item};
+use crate::critic::style as cs;
 use crate::doc::Doc as ViewDoc;
 use crate::highlight::Highlighter;
 use crate::sanitize::{char_width, str_width, visible_line, DEFAULT_TAB_WIDTH};
@@ -144,6 +145,16 @@ impl Ctx<'_> {
                     if text_s != *url {
                         out.push(Seg { text: format!(" ‹{}›", t(url)), style: dim(), link: Some(idx) });
                     }
+                }
+                Inline::Critic(part, s) => {
+                    let ps = match part {
+                        CriticPart::Deleted => cs::deleted(),
+                        CriticPart::Inserted => cs::inserted(),
+                        CriticPart::Highlighted => cs::highlighted(),
+                        CriticPart::Comment => cs::comment_badge(),
+                        CriticPart::RawMarkup => cs::raw_markup(),
+                    };
+                    out.push(Seg { text: t(s), style: style.patch(ps), link })
                 }
                 Inline::SoftBreak => out.push(Seg { text: " ".into(), style, link }),
                 Inline::HardBreak => out.push(Seg { text: "\n".into(), style, link }),

@@ -14,8 +14,9 @@ pub fn read() -> io::Result<(Event, Option<Key>)> {
     Ok((ev, phys))
 }
 
-#[cfg(unix)]
-fn phys(k: &KeyEvent) -> Option<Key> {
+// base_layout: kitty alternate keys on unix, the virtual key code on Windows (vendored crossterm)
+#[cfg(any(unix, windows))]
+pub(crate) fn phys(k: &KeyEvent) -> Option<Key> {
     let base = k.base_layout? as u32;
     saysdf_keys::from_kitty(&format!(
         "{base}::{base};{}",
@@ -23,12 +24,12 @@ fn phys(k: &KeyEvent) -> Option<Key> {
     ))
 }
 
-#[cfg(not(unix))]
-fn phys(_k: &KeyEvent) -> Option<Key> {
+#[cfg(not(any(unix, windows)))]
+pub(crate) fn phys(_k: &KeyEvent) -> Option<Key> {
     None
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn kitty_mod_bits(m: KeyModifiers) -> u8 {
     [
         (KeyModifiers::SHIFT, 1),
@@ -115,7 +116,7 @@ mod tests {
         k
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn base_layout_gives_physical_key() {
         assert_eq!(
@@ -123,6 +124,52 @@ mod tests {
             Some(Key::new(PhysKeyCode::Y, Modifiers::NONE))
         );
         assert_eq!(phys(&ev('y', None)), None);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ctrl_with_cyrillic_char_is_physical_key() {
+        let mut k = KeyEvent::new(KeyCode::Char('к'), KeyModifiers::CONTROL);
+        k.base_layout = Some('r');
+        assert_eq!(phys(&k), Some(Key::new(PhysKeyCode::R, Modifiers::CTRL)));
+        // key specs name letters in lowercase; "Ctrl+R" means Ctrl+Shift+R
+        assert!(is(&k, phys(&k), "Ctrl+r").unwrap());
+        assert!(!is(&k, phys(&k), "Ctrl+R").unwrap());
+    }
+
+    // every character the vendored Windows parser puts into base_layout from a virtual key code
+    // (crossterm `base_layout_for_vk`; the vendored crate's own test cannot run outside the workspace)
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn every_vk_base_layout_char_is_a_physical_key() {
+        use PhysKeyCode as P;
+        let table = [
+            (' ', P::Space),
+            (';', P::Semicolon),
+            ('=', P::Equal),
+            (',', P::Comma),
+            ('-', P::Minus),
+            ('.', P::Period),
+            ('/', P::Slash),
+            ('`', P::Grave),
+            ('[', P::LeftBracket),
+            ('\\', P::Backslash),
+            (']', P::RightBracket),
+            ('\'', P::Quote),
+            ('0', P::K0),
+            ('9', P::K9),
+            ('a', P::A),
+            ('r', P::R),
+            ('z', P::Z),
+        ];
+        for (c, code) in table {
+            let mut k = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
+            k.base_layout = Some(c);
+            assert_eq!(phys(&k), Some(Key::new(code, Modifiers::CTRL)), "base {c:?}");
+        }
+        for c in ('0'..='9').chain('a'..='z') {
+            assert!(phys(&ev(c, Some(c))).is_some(), "base {c:?}");
+        }
     }
 
     #[test]

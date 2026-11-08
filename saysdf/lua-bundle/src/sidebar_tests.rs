@@ -68,6 +68,7 @@ const FAKE: &str = r#"
 fn lua() -> Lua {
     let modules: Modules = Box::leak(
         vec![
+            ("saysdf.bridge", get("saysdf.bridge").unwrap()),
             ("saysdf.i18n", get("saysdf.i18n").unwrap()),
             ("saysdf.palette", get("saysdf.palette").unwrap()),
             ("saysdf.sidebar", get("saysdf.sidebar").unwrap()),

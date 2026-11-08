@@ -49,15 +49,9 @@ pub fn run(args: MonArgs) -> i32 {
     }
 }
 
-/// Atomic write: a temporary file next to it + rename.
+/// Atomic write of the status file (shared `fsutil::write_atomic`).
 pub fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(format!(".{}.tmp", std::process::id()));
-    let tmp = PathBuf::from(tmp);
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(&tmp, path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
+    crate::fsutil::write_atomic(path, text.as_bytes(), false)
 }
 
 fn parent_alive(sys: &mut System, pid: u32) -> bool {

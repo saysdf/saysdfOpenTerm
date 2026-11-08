@@ -181,6 +181,17 @@ impl Content for MdContent {
         Some(&self.lay.doc)
     }
 
+    /// Viewer control file (D6): like a followed link, the current file goes to the history.
+    fn open_path(&mut self, path: &Path, line: usize) -> Option<io::Result<Nav>> {
+        let back = (self.path.clone(), self.lay.doc.source_line(self.view.0));
+        Some(self.load(path).map(|()| {
+            if !back.0.as_os_str().is_empty() {
+                self.history.push(back);
+            }
+            Nav::Open { title: title_of(path), line: self.lay.doc.view_line(line), path: path.to_path_buf() }
+        }))
+    }
+
     fn reload(&mut self) -> io::Result<Option<String>> {
         if self.path.as_os_str().is_empty() {
             // Built-in text (`saysdf help`): nothing to reload.
@@ -336,7 +347,9 @@ pub fn run_text(title: &str, text: &str) -> i32 {
     }
 }
 
-pub fn run(args: MdArgs) -> i32 {
+/// `saysdf md` inside the dispatcher ([`crate::control::dispatch`]): a control request for another
+/// subcommand is left in `s.next`.
+pub fn run_in(args: MdArgs, s: &mut crate::control::Session) -> i32 {
     let abs = std::path::absolute(&args.path).unwrap_or_else(|_| args.path.clone());
     let title = title_of(&abs);
     let editor = match args.editor_cmd.as_deref().map(crate::editor::parse).transpose() {
@@ -377,8 +390,12 @@ pub fn run(args: MdArgs) -> i32 {
         watch: true,
         status,
     };
-    match pager::run(content, opts) {
-        Ok(()) => 0,
+    match pager::run_ctl(content, opts, s.control(crate::control::Sub::Md)) {
+        Ok(pager::Exit::Quit) => 0,
+        Ok(pager::Exit::Switch(req)) => {
+            s.next = Some(req);
+            0
+        }
         Err(e) => {
             eprintln!("{}", I18N.f("saysdf md: terminal: {error}", &[("error", &e.to_string())]));
             1

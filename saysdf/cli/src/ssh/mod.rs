@@ -8,9 +8,10 @@
 
 pub mod meta;
 
+use crate::fsutil::write_atomic;
 use std::fmt;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 static I18N: saysdf_i18n::Domain = saysdf_i18n::Domain::new("cli-ssh");
@@ -417,42 +418,6 @@ fn newline_of(bytes: &[u8]) -> &'static str {
     } else {
         "\n"
     }
-}
-
-/// Write via a temporary file in the same folder plus rename; `private` means 0600 on Unix.
-/// The permissions of an existing file are preserved.
-pub fn write_atomic(path: &Path, data: &[u8], private: bool) -> io::Result<()> {
-    let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let tmp = dir.join(format!(".{name}.tmp-saysdf-{}", std::process::id()));
-    let res = (|| {
-        let mut f = fs::File::create(&tmp)?;
-        f.write_all(data)?;
-        f.sync_all()?;
-        drop(f);
-        if let Ok(m) = fs::metadata(path) {
-            fs::set_permissions(&tmp, m.permissions())?;
-        } else if private {
-            set_private(&tmp)?;
-        }
-        fs::rename(&tmp, path)
-    })();
-    if res.is_err() {
-        let _ = fs::remove_file(&tmp);
-    }
-    res
-}
-
-#[cfg(unix)]
-fn set_private(p: &Path) -> io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(p, fs::Permissions::from_mode(0o600))
-}
-
-/// Windows: the inherited ACLs of the user profile (design D4).
-#[cfg(not(unix))]
-fn set_private(_p: &Path) -> io::Result<()> {
-    Ok(())
 }
 
 fn ensure_dir(dir: &Path) -> io::Result<()> {

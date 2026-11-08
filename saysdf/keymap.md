@@ -52,9 +52,10 @@ Confirmations ("Press Y to confirm, N or Esc to cancel") wait for the physical Y
 Items of the F9 menu are invoked by their `[X]` accelerator — also by physical key.
 
 Fallback in TUI utilities: single-letter commands and answers by physical key work only if the terminal
-sends the base-layout key (kitty keyboard protocol in saysdfTerm on Linux/macOS). In other terminals,
-over ssh from a host without saysdfTerm, on Windows, and with `enable_kitty_keyboard = false`, commands accept only
-the typed US letter: on a Russian layout, switch the layout.
+reports the physical key: the base-layout key of the kitty keyboard protocol in saysdfTerm on Linux/macOS,
+the virtual key code of the console input record on Windows. In other terminals, over ssh from a host
+without saysdfTerm, with `enable_kitty_keyboard = false` (Linux/macOS) and with win32-input-mode off (Windows),
+commands accept only the typed US letter: on a Russian layout, switch the layout.
 
 `saysdf.keys` enables `config.enable_kitty_keyboard = true` unless the user set it themselves.
 Programs that request kitty keyboard themselves (neovim, helix, kakoune) receive keys in its
@@ -69,3 +70,31 @@ no hotkey; use the menu and the command palette.
 
 Inside the `saysdf` TUI utilities (view, md, mermaid, diff, db, mon), their own keys act
 only within their pane and are not part of this registry.
+
+### Viewer keys (text annotations; `saysdf view` / `md`)
+
+TUI-internal keys of the viewer panes, not GUI bindings (no new global hotkey). Also listed in the
+F9 menu / palette entry "Help → Viewer keys". Every command is a Ctrl combination matched by the
+physical key on any layout (text-annotations D13). The last two rows (`s`, `]]`/`[[`) are
+the current markdown keys: they move to Ctrl+S and `]`/`[` in step D-1 (the Lua help text already
+shows the target keys).
+
+| Key | Action |
+|---|---|
+| Shift+arrows, Shift+Home/End, Shift+PgUp/PgDn, mouse drag | select from the caret (`saysdf view`) |
+| Ctrl+Space | start / clear selection mode at the caret; then arrows move the caret, Ctrl+Left/Right by word, Ctrl+Home/End to file start/end |
+| Ctrl+R / Ctrl+D / Ctrl+N / Ctrl+K | on a selection: substitute / delete (Enter confirms) / insert after / comment |
+| Ctrl+E / Ctrl+X | amend / remove the annotation under the caret |
+| Alt+Down / Alt+Up | next / previous annotation |
+| Ctrl+W | `saysdf view`: soft wrap on/off (on by default for `.md`, `.markdown`, `.txt`) |
+| Ctrl+F | `saysdf view`: diff of the file against `HEAD` (`saysdf diff`); back to the viewer on close |
+| Ctrl+L | `saysdf view`: annotation list of the project folder (`saysdf annotations`); Enter opens the chosen mark here, Esc returns |
+| Ctrl+G | `saysdf view`: hand the file to the agent pane (a phrase with the path is pasted, no Enter); only in a viewer opened by saysdfTerm |
+| Esc | clear the selection / cancel the editor (never quits from a sub-mode) |
+| `r`, `/`, `n`, `q`, arrows | pager: reload, search, next match, quit, scroll (physical keys) |
+| `s` (until D-1: Ctrl+S) | markdown: source / rendered view |
+| `]]` / `[[` (until D-1: `]` / `[`) | markdown: next / previous heading. **Breaking:** these were single `]` / `[` before; `diff`, `merge`, `db` keep the single keys |
+| Enter / Ctrl+J, Alt+Enter / Esc | input editor: save / new line / cancel (Ctrl+J is the reliable newline: Alt+Enter is upstream fullscreen in the GUI) |
+
+Palette / menu entries (`saysdf.annotations`): "Annotations in project…", "Hand annotations to the
+agent" (Tools), "Viewer keys" (Help).

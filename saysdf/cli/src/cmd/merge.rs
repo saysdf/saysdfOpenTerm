@@ -13,7 +13,7 @@ use saysdf_render::doc::Doc;
 use saysdf_render::merge::{self, Chunk, ChunkKind, Eol, Resolution};
 use saysdf_render::sanitize::{str_width, visible_line, DEFAULT_TAB_WIDTH};
 use std::cell::Cell;
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -52,21 +52,6 @@ fn load(files: &[PathBuf]) -> Result<(Vec<Chunk>, Eol, PathBuf), String> {
         }
         _ => Err(I18N.t("expected 1 file with markers or 4: BASE LOCAL REMOTE MERGED").into_owned()),
     }
-}
-
-/// Atomic write: a temporary file next to the target, then rename.
-fn save_atomic(path: &Path, text: &str) -> io::Result<()> {
-    let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let tmp = dir.join(format!(".{name}.saysdf-merge.{}", std::process::id()));
-    {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(text.as_bytes())?;
-        f.sync_all()?;
-    }
-    std::fs::rename(&tmp, path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
 }
 
 fn get(v: &[String], i: usize) -> &str {
@@ -251,7 +236,7 @@ impl MergeView {
             return Nav::Status(I18N.f("unresolved: {n}; press w again to save with markers", &[("n", &n.to_string())]));
         }
         let (text, n) = merge::build(&self.chunks, self.eol);
-        match save_atomic(&self.out, &text) {
+        match crate::fsutil::write_atomic(&self.out, text.as_bytes(), false) {
             Ok(()) => {
                 self.exit.set(if n == 0 { 0 } else { 1 });
                 self.confirm_save = false;

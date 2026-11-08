@@ -6,9 +6,11 @@
 //! - [`doc`] — pager document model and search;
 //! - [`markdown`] — Markdown: block model, width layout, images;
 //! - [`mermaid`] — Mermaid as character graphics (flowchart, sequence);
+//! - [`critic`] — CriticMarkup parser for text annotations;
 //! - [`diff`] — diff model, `git diff` parsing, hunk patch, rendering;
 //! - [`merge`] — conflict markers, three-way merge.
 
+pub mod critic;
 pub mod diff;
 pub mod doc;
 pub mod highlight;

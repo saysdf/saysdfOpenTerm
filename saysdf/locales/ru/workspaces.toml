@@ -26,3 +26,40 @@
 "Workspaces: save current" = "Рабочие пространства: сохранить текущее"
 "Workspaces: allow/forbid commands of the current one" = "Рабочие пространства: разрешить/запретить команды текущего"
 "Workspaces: open the project of the current folder (.saysdf/workspace.json)" = "Рабочие пространства: открыть проект текущей папки (.saysdf/workspace.json)"
+
+# Manual-save preview (<name>.preview.md); {name} is a workspace name, {time} a date and time,
+# {path} a file path, {n} a number, {title} a tab title, {id} a shortened session id, {cmd} a command.
+"Workspace \"{name}\"" = "Рабочее пространство \"{name}\""
+"saved {time}" = "сохранено {time}"
+"File: `{path}`" = "Файл: `{path}`"
+"Commands: allowed" = "Команды: разрешены"
+"Commands: not allowed (only shells and Claude Code sessions are restored)" = "Команды: не разрешены (восстанавливаются только шеллы и сессии Claude Code)"
+"Restore at startup: {mode}" = "Восстановление при запуске: {mode}"
+"Tab {n} - \"{title}\"" = "Вкладка {n} - \"{title}\""
+"Tab {n}" = "Вкладка {n}"
+"Pane {n}" = "Панель {n}"
+"Claude Code: resume session `{id}`" = "Claude Code: продолжить сессию `{id}`"
+"command not saved: looks like it contains a secret" = "команда не сохранена: похоже, содержит секрет"
+"command: `{cmd}`" = "команда: `{cmd}`"
+"Not saved" = "Не сохраняется"
+"Terminal history (scrollback), window size and position, environment variables." = "История терминала, размер и положение окна, переменные окружения."
+
+# Startup question, once per new Claude Code executable (InputSelector title); {exe} is its absolute path.
+# Nothing is started until the user allows; the answer is remembered for this path.
+"Allow saysdfTerm to start {exe} --resume automatically?" = "Разрешить saysdfTerm автоматически запускать {exe} --resume?"
+"Allow (remember this program)" = "Разрешить (запомнить эту программу)"
+# "No" is remembered too; the panes open shells in their folders.
+"No, open shells (remember)" = "Нет, открыть шеллы (запомнить)"
+
+# Pane position words in the preview, e.g. "Pane 2 (bottom right, 25%)"
+"top" = "сверху"
+"middle" = "посередине"
+"bottom" = "снизу"
+"left" = "слева"
+"center" = "по центру"
+"right" = "справа"
+
+# Manual save ("Workspaces: save current"): notices; {tabs}/{panes}/{claude} are numbers, {path} the preview file.
+"Nothing to save: the workspace has no tabs" = "Нечего сохранять: в рабочем пространстве нет вкладок"
+"Saved: {tabs} tabs, {panes} panes, {claude} Claude sessions" = "Сохранено: вкладок {tabs}, панелей {panes}, сессий Claude {claude}"
+"Preview: {path}" = "Предпросмотр: {path}"

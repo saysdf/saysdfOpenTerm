@@ -1,5 +1,6 @@
 //! Subcommands of `saysdf`.
 
+pub mod annotations;
 pub mod diff;
 pub mod files;
 pub mod git_run;

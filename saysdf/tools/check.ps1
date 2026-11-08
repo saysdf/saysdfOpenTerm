@@ -22,7 +22,9 @@ Set-SaysdfBuildJobs
 Add-SaysdfPerlPath
 function Invoke-Cargo { Invoke-SaysdfCargo ([string[]]$args) }
 
-$pkg = if ($Crate) { @('-p', $Crate) } else { @('--workspace') }
+# @(...) keeps a one-element array: `if` unrolls @('--workspace') to a string, and splatting a
+# string passes its characters (cargo got "- - w o r k s p a c e").
+$pkg = @(if ($Crate) { '-p', $Crate } else { '--workspace' })
 
 if ($Build -or $Run) {
     # Upstream packages wezterm-gui/wezterm/wezterm-mux-server build the saysdfTerm* binaries

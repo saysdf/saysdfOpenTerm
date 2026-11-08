@@ -51,3 +51,62 @@
 "saysdf md: terminal: {error}" = "saysdf md: терминал: {error}"
 "saysdf help: terminal: {error}" = "saysdf help: терминал: {error}"
 "saysdf mermaid: terminal: {error}" = "saysdf mermaid: терминал: {error}"
+
+# ---- Keyboard selection (text-annotations) ----
+"soft wrap on" = "перенос строк включён"
+"soft wrap off" = "перенос строк выключен"
+"selection is unavailable: the file is shown read-only" = "выделение недоступно: файл открыт только для чтения"
+"nothing to select" = "нечего выделять"
+
+# ---- Annotation actions (text-annotations) ----
+# {markup} is the CriticMarkup that will be written, e.g. {++text++}.
+"mark the selection as deleted ({markup})?" = "пометить выделенное как удалённое ({markup})?"
+"replace the selection with ({markup}):" = "заменить выделенное на ({markup}):"
+"insert text ({markup}):" = "вставить текст ({markup}):"
+"comment at the caret ({markup}):" = "комментарий в точке каретки ({markup}):"
+"comment on the selection ({markup}):" = "комментарий к выделенному ({markup}):"
+"annotation written" = "аннотация записана"
+"annotation cancelled" = "аннотация отменена"
+
+# ---- Annotation navigation, amend and remove (text-annotations) ----
+"annotations: {n}" = "аннотаций: {n}"
+"annotations: {k}/{n}" = "аннотация {k}/{n}"
+"no annotations" = "аннотаций нет"
+"no more annotations" = "больше аннотаций нет"
+"no annotation under the caret" = "под кареткой нет аннотации"
+"remove the annotation under the caret?" = "убрать аннотацию под кареткой?"
+"amend the annotation text:" = "изменить текст аннотации:"
+"annotation removed" = "аннотация убрана"
+
+# ---- Key hint line (text-annotations D13) ----
+# Labels after a key: "Shift+arrows select · Alt+↓/↑ annotations · Ctrl: R substitute · D delete · Esc cancel".
+"Shift+arrows" = "Shift+стрелки"
+"select" = "выделить"
+"annotations" = "аннотации"
+"wrap" = "перенос"
+"substitute" = "заменить"
+"delete" = "удалить"
+"insert" = "вставить"
+"comment" = "комментарий"
+"amend" = "изменить"
+"remove" = "убрать"
+"write" = "записать"
+"cancel" = "отмена"
+"nothing selected: Shift+arrows or Ctrl+Space" = "ничего не выделено: Shift+стрелки или Ctrl+Space"
+
+# ---- Diff against HEAD (text-annotations D13, Ctrl+F) ----
+"diff" = "diff"
+
+# ---- Annotation list (text-annotations D13, Ctrl+L) ----
+"list" = "список"
+"annotations: {error}" = "аннотации: {error}"
+"not a git repository: no diff against HEAD" = "не git-репозиторий: сравнить с HEAD нельзя"
+"the file is not tracked by git: no diff against HEAD" = "файл не отслеживается git: сравнить с HEAD нельзя"
+"diff: {error}" = "diff: {error}"
+"terminal: {error}" = "терминал: {error}"
+
+# ---- Hand-off to the agent (text-annotations D7, Ctrl+G) ----
+"agent" = "агент"
+"open the viewer from saysdfTerm to hand off" = "откройте просмотрщик из saysdfTerm, чтобы передать агенту"
+"the path contains control or invisible characters" = "в пути есть управляющие или невидимые символы"
+"handed to the agent" = "передано агенту"

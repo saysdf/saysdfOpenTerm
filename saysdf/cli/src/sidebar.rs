@@ -2,11 +2,11 @@
 //! in runtime_dir, the answer to the GUI is the user var `SAYSDF_SIDEBAR` =
 //! `<token>:<kind>:<payload>` (OSC 1337). The GUI (`saysdf.sidebar`) accepts the value only from
 //! its own pane, with `saysdf` in the foreground, with the one-time token of this opening and no
-//! longer than [`MAX_VALUE`].
+//! longer than [`crate::bridge::MAX_VALUE`]. The channel itself is [`crate::bridge`].
 
-use std::io::{self, Write};
+use crate::bridge;
+use std::io;
 use std::path::Path;
-use std::time::Duration;
 
 static I18N: saysdf_i18n::Domain = saysdf_i18n::Domain::new("cli-git");
 
@@ -14,13 +14,10 @@ static I18N: saysdf_i18n::Domain = saysdf_i18n::Domain::new("cli-git");
 pub const VAR: &str = "SAYSDF_SIDEBAR";
 /// Environment variable with the one-time token of the opening.
 pub const TOKEN_ENV: &str = "SAYSDF_SIDEBAR_TOKEN";
-/// Value length limit (bytes); the GUI checks the same one.
-pub const MAX_VALUE: usize = 4096;
 /// List file limit.
 pub const MAX_FILE: u64 = 4 * 1024 * 1024;
 /// Send retries: the GUI's foreground cache may lag by a tick (D3).
 const RETRIES: usize = 3;
-const RETRY_DELAY: Duration = Duration::from_millis(200);
 
 /// A pick list item.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,17 +26,13 @@ pub struct Item {
     pub label: String,
 }
 
-/// Takes the token from the environment and removes it there, so child processes (the editor
-/// through `pager::suspend`) do not inherit it. The token is `[0-9a-f-]` only, 8..=64 characters.
+/// Takes the token from the environment and removes it there (see [`bridge::take_token`]).
 pub fn take_token() -> Option<String> {
-    let t = std::env::var(TOKEN_ENV).ok();
-    std::env::remove_var(TOKEN_ENV);
-    t.filter(|t| valid_token(t))
+    bridge::take_token(TOKEN_ENV)
 }
 
-pub fn valid_token(t: &str) -> bool {
-    (8..=64).contains(&t.len()) && t.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
-}
+#[cfg(test)]
+pub use crate::bridge::{parse_value, valid_token, value, MAX_VALUE};
 
 /// Strips control characters (labels are plain text without escape sequences).
 fn plain(s: &str) -> String {
@@ -81,44 +74,15 @@ pub fn read_items(path: &Path) -> Result<Vec<Item>, String> {
     res
 }
 
-/// The user var value; `None` — longer than [`MAX_VALUE`] or a kind/token with `:`.
-pub fn value(token: &str, kind: &str, payload: &str) -> Option<String> {
-    if token.contains(':') || kind.contains(':') {
-        return None;
-    }
-    let v = format!("{token}:{kind}:{payload}");
-    (v.len() <= MAX_VALUE).then_some(v)
-}
-
-/// Parses a `<token>:<kind>:<payload>` value (the payload may contain `:`) — mirrors the parser
-/// in `saysdf.sidebar`, keeps the format under test.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn parse_value(v: &str) -> Option<(&str, &str, &str)> {
-    let mut it = v.splitn(3, ':');
-    Some((it.next()?, it.next()?, it.next()?))
-}
-
-/// OSC 1337 SetUserVar (the value in base64).
+/// OSC 1337 SetUserVar of [`VAR`].
+#[cfg(test)]
 pub fn osc(value: &str) -> String {
-    format!("\x1b]1337;SetUserVar={VAR}={}\x07", crate::cmd::md::base64(value.as_bytes()))
+    bridge::osc(VAR, value)
 }
 
 /// Sends the result with retries (D3). The terminal must already be restored.
 pub fn send(token: &str, kind: &str, payload: &str) -> io::Result<()> {
-    let Some(v) = value(token, kind, payload) else {
-        let msg = I18N.t("the result is longer than 4 KB").into_owned();
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, msg));
-    };
-    let seq = osc(&v);
-    let mut out = io::stdout();
-    for i in 0..RETRIES {
-        if i > 0 {
-            std::thread::sleep(RETRY_DELAY);
-        }
-        out.write_all(seq.as_bytes())?;
-        out.flush()?;
-    }
-    Ok(())
+    bridge::Channel { var: VAR, token: token.to_owned(), retries: RETRIES }.send(kind, payload)
 }
 
 #[cfg(test)]

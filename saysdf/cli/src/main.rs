@@ -2,19 +2,27 @@
 //!
 //! `--help` is English only: clap takes it from the doc comments at compile time (i18n plan D11).
 
+mod annotate;
+mod bridge;
 mod cmd;
+mod control;
 mod db;
 mod editor;
 mod files;
 mod form;
+mod fsutil;
 mod git;
 mod keys;
+mod lineedit;
 mod log;
 mod mon;
 mod pager;
+mod critic_style;
+mod selection;
 mod sidebar;
 mod ssh;
 mod watch;
+mod wrap;
 
 use clap::{Parser, Subcommand};
 
@@ -69,6 +77,8 @@ enum Command {
     Pick(cmd::pick::PickArgs),
     /// File browser: tree, git marks, create/rename/delete, open in the viewer
     Files(cmd::files::FilesArgs),
+    /// CriticMarkup annotations of a folder (.md/.markdown/.txt): a list; Enter opens the file at the mark
+    Annotations(cmd::annotations::AnnotationsArgs),
 }
 
 fn main() {
@@ -83,9 +93,10 @@ fn main() {
     // only clutter TUI output. Argument parsing above does no lookups (`--help` is English).
     let _ = saysdf_i18n::init_from_env();
     let code = match cli.command {
-        Command::View(args) => cmd::view::run(args),
-        Command::Md(args) => cmd::md::run(args),
-        Command::Mermaid(args) => cmd::mermaid::run(args),
+        // viewer subcommands run in the dispatcher: a reused split switches between them (D6)
+        Command::View(args) => control::dispatch(control::Launch::View(args)),
+        Command::Md(args) => control::dispatch(control::Launch::Md(args)),
+        Command::Mermaid(args) => control::dispatch(control::Launch::Mermaid(args)),
         Command::Diff(args) => cmd::diff::run(args),
         Command::Merge(args) => cmd::merge::run(args),
         Command::GitStatus(args) => cmd::git_status::run(args),
@@ -97,6 +108,7 @@ fn main() {
         Command::Help(args) => cmd::help::run(args),
         Command::Pick(args) => cmd::pick::run(args),
         Command::Files(args) => cmd::files::run(args),
+        Command::Annotations(args) => cmd::annotations::run(args),
     };
     std::process::exit(code);
 }

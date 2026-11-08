@@ -191,7 +191,13 @@ mod perf_tests;
 #[cfg(test)]
 mod sidebar_tests;
 #[cfg(test)]
+mod bridge_tests; // text-annotations
+#[cfg(test)]
+mod annotations_tests; // text-annotations
+#[cfg(test)]
 mod files_tests; // file-browser
+#[cfg(test)]
+mod claude_tests; // workspace-restore
 #[cfg(test)]
 mod i18n_tests;
 #[cfg(test)]

@@ -1,5 +1,5 @@
 # Russian catalog of the shared TUI engine: pager, external editor, form
-# (saysdf/cli/src/pager.rs, editor.rs, form.rs).
+# (saysdf/cli/src/pager.rs, editor.rs, form.rs, lineedit.rs).
 
 # ---- Pager status line (shown until the next key press) ----
 "watch unavailable: polling every 2 s" = "вотч недоступен: опрос раз в 2 с"
@@ -15,6 +15,12 @@
 # {error} is the system error text.
 "read error: {error}" = "ошибка чтения: {error}"
 "no editor set (--editor-cmd)" = "редактор не задан (--editor-cmd)"
+# Viewer control file (a reused viewer split, text-annotations D6): the request was malformed.
+"ignored an invalid open request" = "некорректный запрос на открытие пропущен"
+# {path} is the file the terminal asked to open, {error} the system error text.
+"cannot open {path}: {error}" = "не удалось открыть {path}: {error}"
+# {name} is the file name; it opens after the input or confirmation is finished.
+"file waiting: {name}" = "файл ждёт: {name}"
 
 # ---- External editor errors (shown in the pager status line) ----
 # {error} is the JSON parser error.
@@ -30,3 +36,6 @@
 " Tab/Shift+Tab field, Enter save, Esc cancel" = " Tab/Shift+Tab — поле, Enter — сохранить, Esc — отмена"
 # Message screen; {text} is the message, the second paragraph is the hint.
 "{text}\n\nAny key to close" = "{text}\n\nЛюбая клавиша — выход"
+
+# ---- Input editor (saysdf/cli/src/lineedit.rs) ----
+"Enter save · Ctrl+J newline · Esc cancel" = "Enter сохранить · Ctrl+J новая строка · Esc отмена"

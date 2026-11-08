@@ -1,0 +1,31 @@
+# Russian catalog of saysdf.annotations (saysdf/lua/saysdf/annotations.lua).
+
+# Phrase pasted into the agent pane ({path} is the file; quoted when it has spaces).
+"Review the annotations in {path}" = "Проверь аннотации в {path}"
+"Review the annotations in folder {path}" = "Проверь аннотации в папке {path}"
+
+# Messages
+"Annotations handed to the agent pane" = "Аннотации переданы в панель агента"
+"No pane to hand the annotations to" = "Нет панели, куда передать аннотации"
+
+# Pane chooser title (no agent pane found)
+"Choose the agent pane" = "Выберите панель агента"
+
+# Palette / F9 entries
+"Annotations in project…" = "Аннотации в проекте…"
+"Annotations: list in project folder" = "Аннотации: список в папке проекта"
+"Hand annotations to the agent" = "Передать аннотации агенту"
+"Annotations: hand folder to agent" = "Аннотации: передать папку агенту"
+"Viewer keys" = "Клавиши просмотрщика"
+"Viewer keys: selection and annotations" = "Клавиши просмотрщика: выделение и аннотации"
+"Viewer keys (Esc closes)" = "Клавиши просмотрщика (Esc закрывает)"
+"Unknown folder of the pane" = "Папка панели неизвестна"
+"Annotations" = "Аннотации"
+
+# Viewer keys help lines (one per line in the selector)
+"Shift+arrows or mouse drag — select text; Ctrl+Space — selection mode on/off; Esc — clear" = "Shift+стрелки или мышь — выделить текст; Ctrl+Space — режим выделения вкл/выкл; Esc — снять"
+"Ctrl: R substitute · D delete · N insert · K comment (on a selection)" = "Ctrl: R заменить · D удалить · N вставить · K комментарий (на выделении)"
+"Alt+Down / Alt+Up — next / previous annotation; Ctrl: E amend · X remove (on an annotation)" = "Alt+↓ / Alt+↑ — следующая / предыдущая аннотация; Ctrl: E изменить · X убрать (на аннотации)"
+"Ctrl: G hand the file to the agent · L annotations of the project folder · F diff against HEAD · W wrap" = "Ctrl: G передать файл агенту · L аннотации папки проекта · F diff с HEAD · W перенос строк"
+"Markdown: Ctrl+S — source / rendered view; ] / [ — next / previous heading" = "Markdown: Ctrl+S — исходник / рендер; ] / [ — следующий / предыдущий заголовок"
+"Input: Enter — save; Ctrl+J or Alt+Enter — new line; Esc — cancel" = "Ввод: Enter — сохранить; Ctrl+J или Alt+Enter — новая строка; Esc — отмена"

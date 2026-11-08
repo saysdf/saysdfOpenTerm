@@ -12,6 +12,7 @@ syntect.workspace = true
 unicode-width = "0.2"
 pulldown-cmark = {version="0.13", default-features=false}
 similar = "2"
+unicode-segmentation.workspace = true
 
 [dev-dependencies]
 # saysdf_i18n::testing: tests look up in English (or the language of use_lang), per thread
