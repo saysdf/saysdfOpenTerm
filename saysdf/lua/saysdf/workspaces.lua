@@ -208,12 +208,18 @@ local function strip(n, keep, on_drop)
   return { split = n.split, ratio = n.ratio, a = strip(n.a, keep, on_drop), b = strip(n.b, keep, on_drop) }
 end
 
--- ws: { name, allow_commands?, tabs = { {title?, layout} } } -> table for JSON
+-- saysdf.tabs is loaded lazily (tab colors live there); nil when unavailable.
+local function tabs_api()
+  local ok, m = pcall(require, "saysdf.tabs")
+  return ok and m or nil
+end
+
+-- ws: { name, allow_commands?, tabs = { {title?, color?, layout} } } -> table for JSON
 function M.to_data(ws)
   local keep = ws.allow_commands == true
   local tabs = {}
   for _, t in ipairs(ws.tabs or {}) do
-    table.insert(tabs, { title = t.title, layout = strip(t.layout, keep) })
+    table.insert(tabs, { title = t.title, color = t.color, layout = strip(t.layout, keep) })
   end
   return { version = M.VERSION, name = ws.name, allow_commands = keep or nil, tabs = tabs }
 end
@@ -244,7 +250,18 @@ function M.from_data(t)
     if type(tab) ~= "table" or not valid_node(tab.layout, 0) then
       return nil, "bad layout in tab " .. i
     end
-    table.insert(tabs, { title = type(tab.title) == "string" and tab.title or nil, layout = strip(tab.layout, keep, on_drop) })
+    local color = nil
+    if tab.color ~= nil then
+      color = tabs_api() and tabs_api().resolve_color(tab.color) or nil
+      if not color then
+        util.log_warn("saysdf.workspaces: " .. t.name .. ": tab color dropped: " .. tostring(tab.color))
+      end
+    end
+    table.insert(tabs, {
+      title = type(tab.title) == "string" and tab.title or nil,
+      color = color,
+      layout = strip(tab.layout, keep, on_drop),
+    })
   end
   return { name = t.name, allow_commands = keep, tabs = tabs }
 end
@@ -970,7 +987,14 @@ function M.snapshot(name, allow_commands, claude_map)
           })
         end
         local title = tab:get_title()
-        table.insert(ws.tabs, { title = title ~= "" and title or nil, layout = M.layout_from_panes(panes) })
+        local okc, color = pcall(function()
+          return tabs_api() and tabs_api().get_color(tab) or nil
+        end)
+        table.insert(ws.tabs, {
+          title = title ~= "" and title or nil,
+          color = okc and color or nil,
+          layout = M.layout_from_panes(panes),
+        })
       end
     end
   end
@@ -1041,6 +1065,160 @@ function M.save_manual(window, pane, name)
   end
   counts.preview = preview
   return counts
+end
+
+-- ---- Naming: rename / save as (change workspace-naming, D2/D3) ----
+
+-- Pure decision for renaming `old` to `new`. open: names of open workspaces; exists(name) -> bool: a
+-- saved file for that name exists. -> { action = "cancel"|"same"|"refuse"|"confirm"|"go", name = trimmed }
+function M.rename_decision(old, new, open, exists)
+  new = type(new) == "string" and new:match("^%s*(.-)%s*$") or ""
+  if new == "" then
+    return { action = "cancel" }
+  end
+  if new == old then
+    return { action = "same", name = new }
+  end
+  for _, n in ipairs(open or {}) do
+    if n == new then
+      return { action = "refuse", name = new }
+    end
+  end
+  if exists and exists(new) then
+    return { action = "confirm", name = new }
+  end
+  return { action = "go", name = new }
+end
+
+-- Move <old>.json and <old>.preview.md to the new names (write_atomic + remove). -> ok, err
+local function move_saved(old, new)
+  local a, b = safe_name(old), safe_name(new)
+  if a == b then
+    return true -- both names map to the same file
+  end
+  local moved = false
+  for _, ext in ipairs({ ".json", ".preview.md" }) do
+    local from, to = util.join(M.dir(), a .. ext), util.join(M.dir(), b .. ext)
+    local text = util.read_file(from)
+    if text then
+      local ok, err = util.write_atomic(to, text)
+      if not ok then
+        return false, err
+      end
+      os.remove(from)
+      moved = true
+    elseif moved then
+      os.remove(to) -- no stale preview of the replaced workspace
+    end
+  end
+  return true
+end
+
+-- Ask a name with PromptInputLine; cb(name) gets the raw line (nil on Esc).
+function M.prompt_name(window, pane, description, initial, cb)
+  local w = wezterm()
+  window:perform_action(
+    w.action.PromptInputLine({
+      description = description,
+      initial_value = initial or "",
+      action = w.action_callback(function(_, _, line)
+        cb(line)
+      end),
+    }),
+    pane
+  )
+end
+
+local SESSION_FILE = "last-session.json"
+
+-- Write last-session.json with the given workspace names.
+local function write_last_session(names)
+  util.write_atomic(
+    util.join(M.dir(), SESSION_FILE),
+    wezterm().json_encode({ version = M.VERSION, workspaces = names })
+  )
+end
+
+-- Rename the open workspace `old` to `new` and move its saved files. opts.done(ok, name) is called when
+-- finished (not on cancel/refusal -> ok=false). Overwrite of a saved `new` is confirmed (default: no).
+function M.rename_workspace(window, pane, old, new, opts)
+  local w = wezterm()
+  local done = (opts and opts.done) or function() end
+  local function exists(n)
+    return util.read_file(util.join(M.dir(), safe_name(n) .. ".json")) ~= nil
+  end
+  local d = M.rename_decision(old, new, w.mux.get_workspace_names(), exists)
+  if d.action == "cancel" then
+    return done(false)
+  elseif d.action == "same" then
+    return done(true, d.name)
+  elseif d.action == "refuse" then
+    util.notify(window, t("Workspaces"), t("A workspace named {name} is already open", { name = d.name }))
+    return done(false)
+  end
+  local function go()
+    local ok = pcall(w.mux.rename_workspace, old, d.name)
+    if not ok then
+      util.notify(window, t("Workspaces"), t("Could not rename the workspace"))
+      return done(false)
+    end
+    local moved, err = move_saved(old, d.name)
+    if not moved then
+      util.log_error("saysdf.workspaces: move failed: " .. tostring(err))
+      util.notify(window, t("Workspaces"), t("The saved files were not moved: {error}", { error = tostring(err) }))
+    end
+    allow_cache[d.name], allow_cache[old] = allow_cache[old], nil
+    if M._state.autosave then
+      M._state.autosave.last_text = nil -- the names changed: compare afresh on the next pass
+    end
+    -- a crash before the next autosave must not leave the old name in last-session.json
+    write_last_session(w.mux.get_workspace_names())
+    return done(true, d.name)
+  end
+  if d.action == "go" then
+    return go()
+  end
+  window:perform_action(
+    w.action.InputSelector({
+      title = t("Replace the saved workspace {name}?", { name = d.name }),
+      choices = {
+        { id = "no", label = t("No, keep it") },
+        { id = "yes", label = t("Yes, replace") },
+      },
+      action = w.action_callback(function(_, _, id)
+        if id == "yes" then
+          go()
+        else
+          done(false)
+        end
+      end),
+    }),
+    pane
+  )
+end
+
+-- "Workspaces: rename…"
+function M.rename_prompt(window, pane)
+  local old = window:active_workspace()
+  M.prompt_name(window, pane, t("Workspace name (Esc to cancel)"), old, function(line)
+    if line ~= nil then
+      M.rename_workspace(window, pane, old, line)
+    end
+  end)
+end
+
+-- "Workspaces: save as…": the active workspace takes the new name, then is saved under it.
+function M.save_as_prompt(window, pane)
+  local old = window:active_workspace()
+  M.prompt_name(window, pane, t("Save workspace as (Esc to cancel)"), old, function(line)
+    M.rename_workspace(window, pane, old, line, {
+      done = function(ok, name)
+        if ok then
+          M.save_manual(window, pane, name)
+        end
+      end,
+    })
+  end)
 end
 
 function M.load(name)
@@ -1187,6 +1365,9 @@ function M.restore(ws, allow_commands, ctx)
     if t.title then
       tab:set_title(t.title)
     end
+    if t.color and tabs_api() then
+      tabs_api().set_color(tab, t.color)
+    end
     local made = { pane }
     for _, s in ipairs(plan.steps) do
       made[s.new] = made[s.from]:split({
@@ -1288,10 +1469,40 @@ function M.open_project(window, pane, root)
   }), pane)
 end
 
+-- "New workspace…": switch to an open one, restore a saved one, else spawn a fresh one in the pane's cwd.
+function M.new_workspace(window, pane, name)
+  local w = wezterm()
+  name = type(name) == "string" and name:match("^%s*(.-)%s*$") or ""
+  if name == "" then
+    return
+  end
+  for _, n in ipairs(w.mux.get_workspace_names()) do
+    if n == name then
+      return window:perform_action(w.action.SwitchToWorkspace({ name = name }), pane)
+    end
+  end
+  local ws = M.load(name)
+  if ws then
+    return M.restore(ws, false)
+  end
+  local spawn = {}
+  local cwd = pane and cwd_of(pane)
+  if cwd then
+    spawn.cwd = cwd
+  end
+  window:perform_action(w.action.SwitchToWorkspace({ name = name, spawn = spawn }), pane)
+end
+
+function M.new_workspace_prompt(window, pane)
+  M.prompt_name(window, pane, t("New workspace name (Esc to cancel)"), "", function(line)
+    M.new_workspace(window, pane, line)
+  end)
+end
+
 -- Workspace list: open + saved, fuzzy.
 function M.choose(window, pane)
   local w = wezterm()
-  local seen, choices = {}, {}
+  local seen, choices = {}, { { id = "new:", label = t("New workspace…") } }
   for _, n in ipairs(w.mux.get_workspace_names()) do
     seen[n] = true
     table.insert(choices, { id = "open:" .. n, label = t("{name}  (open)", { name = n }) })
@@ -1311,7 +1522,9 @@ function M.choose(window, pane)
         return
       end
       local kind, name = id:match("^(%a+):(.*)$")
-      if kind == "open" then
+      if kind == "new" then
+        M.new_workspace_prompt(win, p)
+      elseif kind == "open" then
         win:perform_action(w.action.SwitchToWorkspace({ name = name }), p)
       else
         local ws, err = M.load(name)
@@ -1324,8 +1537,6 @@ function M.choose(window, pane)
     end,
   }), pane)
 end
-
-local SESSION_FILE = "last-session.json"
 
 -- Clock (seconds); tests replace it.
 function M._clock()
@@ -1406,7 +1617,7 @@ function M.autosave_tick(now)
   for _, n in ipairs(names) do
     M.save(n, nil, parts[n])
   end
-  util.write_atomic(util.join(M.dir(), SESSION_FILE), w.json_encode({ version = M.VERSION, workspaces = names }))
+  write_last_session(names)
   st.autosave.saved_w = new_w
   st.autosave.saved_w_known = true
   return true
@@ -1713,6 +1924,24 @@ function M.setup(opts, config)
           M.open_project(win, pane, cwd)
         end
       end),
+    })
+    palette.add({
+      id = "workspaces.new", menu = "File", order = 10.5, accel = "k",
+      brief = t("Workspaces: new…"),
+      icon = "md_plus_box",
+      action = w.action_callback(M.new_workspace_prompt),
+    })
+    palette.add({
+      id = "workspaces.save_as", menu = "File", order = 11.1, accel = "v",
+      brief = t("Workspaces: save as…"),
+      icon = "md_content_save_edit",
+      action = w.action_callback(M.save_as_prompt),
+    })
+    palette.add({
+      id = "workspaces.rename", menu = "File", order = 11.2, accel = "m",
+      brief = t("Workspaces: rename…"),
+      icon = "md_rename_box",
+      action = w.action_callback(M.rename_prompt),
     })
   end
   return config

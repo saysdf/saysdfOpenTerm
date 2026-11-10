@@ -52,6 +52,10 @@ pub trait Content {
     }
     /// Output over the ratatui frame (OSC 1337 images): window `[top, top+height)`, text column `x`.
     fn overlay(&mut self, _out: &mut dyn io::Write, _top: usize, _height: usize, _x: usize, _hscroll: usize) {}
+    /// The cursor/current line (`pos`) after a key or search handled by the pager, and on every
+    /// pager tick (about 10 times a second). Lets a content react to cursor changes (debounced
+    /// hover messages of `saysdf pick --hover`). Default: nothing.
+    fn cursor_moved(&mut self, _pos: usize) {}
     /// Picker list (`saysdf pick`): arrows/PgUp/PgDn/Home/End move the cursor, not the scroll;
     /// `/` search is fuzzy ([`fuzzy_score`]) over the `doc()` lines.
     fn picker(&self) -> bool {
@@ -488,6 +492,8 @@ pub fn run_ctl<C: Content>(content: C, opts: Options, ctl: Option<Control>) -> i
                 guard.term.clear()?;
             }
         }
+        let pos = p.cursor.unwrap_or(p.top);
+        p.content.cursor_moved(pos);
         if p.watch.as_mut().is_some_and(|w| w.poll()) {
             p.reload();
         }

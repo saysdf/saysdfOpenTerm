@@ -25,7 +25,7 @@ Keys are named by their physical position on a US layout: Ctrl+Shift+E is the E 
 | Ctrl+Shift+H | list of SSH connections | ssh-connections / `saysdf.ssh` |
 | Ctrl+Shift+I | load metrics in the status bar (on/off) | system-monitor / `saysdf.monitor` |
 | Ctrl+Shift+J | load and process monitor in a split | system-monitor |
-| Ctrl+Shift+A | list of workspaces | project-workspaces / `saysdf.workspaces` |
+| Ctrl+Shift+A | list of workspaces (first item: new workspace; palette: save as, rename) | project-workspaces / `saysdf.workspaces` |
 | Ctrl+Shift+Space | quick-select: copy | quick-select (upstream) |
 | Ctrl+Alt+Space | quick-select: open | quick-select / `saysdf.quickselect` |
 | Ctrl+Shift+S | Git menu (commit, push, pull, checkout, submodules, diff) | git-integration / `saysdf.git` |

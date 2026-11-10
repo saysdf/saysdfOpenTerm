@@ -85,6 +85,12 @@ pub fn send(token: &str, kind: &str, payload: &str) -> io::Result<()> {
     bridge::Channel { var: VAR, token: token.to_owned(), retries: RETRIES }.send(kind, payload)
 }
 
+/// Sends once, without retries and without restoring the terminal: for best-effort
+/// messages that may be superseded at any moment (`hover`).
+pub fn send_once(token: &str, kind: &str, payload: &str) -> io::Result<()> {
+    bridge::Channel { var: VAR, token: token.to_owned(), retries: 1 }.send(kind, payload)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -25,6 +25,8 @@ hints in the shell. Everything works in ordinary terminal panes, without separat
   of a new pane, `y` — copy the path, `n`/`N` — create a file/folder, `r` — rename,
   `d` — delete (permanently, with confirmation; a non-empty folder — after typing its name),
   `p` — pin the root (otherwise it follows the folder of the active pane).
+- **Ctrl+Shift+A** — workspaces: open, saved, and "New workspace…" (asks a name; an open one is just
+  switched to, a saved one is restored). The palette also has "save as…" and "rename…".
 - **F1** — this help (over a full-screen program F1 goes to it).
 - The startup banner closes with Esc, a click or the first input; to turn it off:
   `help = { banner = false }` in `saysdf.setup({...})`.

@@ -4,6 +4,23 @@ Each release of [saysdfTerm](https://github.com/saysdf/saysdfOpenTerm) has a sec
 (optionally followed by ` - YYYY-MM-DD`). `saysdf/tools/release-public.ps1` uses the section as
 the release commit message and refuses to release a version without one.
 
+## 0.3.0 - 2026-11-10
+
+**Live theme preview.** In the theme list (sidebar), moving the cursor applies the theme at once in
+all windows while the list stays open; Enter keeps it, Esc (or closing the panel) restores the theme
+you had before. The InputSelector fallback (no sidebar) works as before. Under the hood `saysdf pick
+--hover` reports the resting cursor (debounced) over the sidebar channel; only ids from the issued
+list are accepted and hovers are rate-limited.
+
+**Workspaces: names and colors.**
+- Tab colors are saved with the workspace and restored with it (old saves load unchanged).
+- "Workspaces: save as…" asks for a name (overwrite needs confirmation, default "no") and saves the
+  current workspace under it; the workspace takes the new name, so autosave keeps it up to date.
+- "Workspaces: rename…" renames the workspace and its saved files; renaming onto another open
+  workspace is refused.
+- "New workspace…" (first item of the Ctrl+Shift+A list, also in the palette): an open name switches
+  to it, a saved one is restored, a new one opens in the current pane's folder.
+
 ## 0.2.0 - 2026-11-08
 
 **Review annotations in the code viewer** (`saysdf view`). Mark up a text file or a book chapter

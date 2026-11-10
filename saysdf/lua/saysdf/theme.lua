@@ -4,8 +4,10 @@
 --   "Theme…"               - a selection of contrasting schemes from saysdf.theme_presets (group, label,
 --                             WCAG contrast; "⚠ ANSI" when ansi_min < 2), then all the other built-in
 --                             schemes; fuzzy search (InputSelector fuzzy); the chosen scheme is applied to
---                             all windows at once (set_config_overrides). Upstream cannot preview while
---                             moving through the list - the scheme is applied on choice (Enter), Esc changes nothing.
+--                             all windows at once (set_config_overrides). In the sidebar the scheme under the
+--                             cursor is previewed in all windows (no save); Enter applies and saves, Esc /
+--                             closing the panel restores the scheme from before opening. With the InputSelector
+--                             fallback there is no preview: the scheme is applied on Enter, Esc changes nothing.
 --   "Light/Dark"           - switch between opts.light and opts.dark.
 --   "Follow system theme"  - the scheme by wezterm.gui.get_appearance(): Light -> light, Dark -> dark;
 --                             after that it follows the system automatically (an OS appearance change
@@ -308,8 +310,36 @@ function M.scheme_names()
   return names
 end
 
+-- Live preview (change theme-live-preview D5): overrides in all windows, no save, `state` untouched.
+-- `known` is the set of ids the list was built from (a table lookup per hover).
+function M.preview(window, id, known)
+  if type(id) ~= "string" or not known[id] then
+    return false
+  end
+  each_window(window, function(win)
+    set_override(win, id)
+  end)
+  return true
+end
+
+-- Put back what was in effect before the list opened; nil removes the override.
+function M.restore(window, before)
+  each_window(window, function(win)
+    local o = win:get_config_overrides() or {}
+    if o.color_scheme ~= before then
+      o.color_scheme = before
+      win:set_config_overrides(o)
+    end
+  end)
+end
+
 function M.select(window, pane)
-  local choices = M.choices(M.presets(), M.scheme_names(), current_scheme(window))
+  local before = current_scheme(window)
+  local choices = M.choices(M.presets(), M.scheme_names(), before)
+  local known = {}
+  for _, c in ipairs(choices) do
+    known[c.id] = true
+  end
   window:perform_action(
     sidebar().selector({
       tool = "theme",
@@ -318,9 +348,14 @@ function M.select(window, pane)
       fuzzy_description = t("Theme: "),
       fuzzy = true,
       choices = choices,
+      on_hover = function(win, _, id)
+        M.preview(win, id, known)
+      end,
       on_choice = function(win, _, id)
-        if id then
+        if id and known[id] then
           M.apply(win, id, { mode = "scheme", scheme = id })
+        else
+          M.restore(win, before) -- Esc, panel closed, or an invalid id: back to the scheme before opening
         end
       end,
     }),

@@ -10,21 +10,31 @@
 --   3) the token matches the one-time token of this open (env SAYSDF_SIDEBAR_TOKEN) and is unused;
 --   4) the value is at most 4096 bytes;
 --   5) allow-list: pick -- an id from the issued list (empty means cancel, callback with id = nil);
+--      hover -- an id from the issued list, only for a selector with on_hover; does NOT spend the token
+--      and does not end the session (live preview, change theme-live-preview D1); a repeat of the previous
+--      accepted id is ignored and at most 20 hovers per second per sidebar are accepted (D2);
 --      action -- `<id>:<arg>`, the id of a saysdf.palette entry with sidebar = true, accept(arg) is truthy;
 --      runs entry.sidebar_run(window, pane, arg) or entry.action.
 -- Refusals are logged once per reason (log_info).
 -- A config reload recreates the module: the tab record (pane, tool, token, origin) is duplicated
 -- in wezterm.GLOBAL (`saysdf_sidebar_<tab_id>`) and restored while the pane is alive --
 -- toggle finds the open sidebar instead of opening a second one. Callbacks (on_result) do not
--- survive a reload: a pick result after it is rejected, action (saysdf files) keeps working.
+-- survive a reload: a pick result and hovers after it are rejected, action (saysdf files) keeps working.
+-- End of session: if the pane disappears without a pick (closed by the user, killed, replaced by another
+-- tool, toggled off), the selector callback is called once with id = nil. The disappearance of a pane is
+-- noticed by `reap` (a saysdf.status hook, a lookup of live panes only while a selector is open) and by
+-- every call that forgets the record.
 --
 -- API:
---   open(window, pane, { tool, args, choices?, multi?, on_result(window, pane, kind, payload) }) -> bool
+--   open(window, pane, { tool, args, choices?, multi?, on_result(window, pane, kind, payload),
+--                        on_hover?(window, pane, id), on_end?(window, pane) }) -> bool
 --                                     multi = true -- several actions per pane lifetime (saysdf files)
 --   toggle(window, pane, tool?)       -- focus/close/open the last tool
 --   selector(spec) -> action          -- InputSelector spec (title, choices {id,label}, fuzzy, action);
 --                                        callback: spec.on_choice(window, pane, id, label) or
 --                                        spec.action (action_callback -- EmitEvent with the same arguments).
+--                                        spec.on_hover(window, pane, id): the cursor rests on an item
+--                                        (preview; `saysdf pick --hover`); never called in the fallback.
 --                                        sidebar = false / no `saysdf` / narrow tab -- InputSelector.
 --   is_sidebar(pane) -> bool
 --   handle_user_var(window, pane, name, value) -> bool  -- user-var-changed handler (for tests)
@@ -196,6 +206,17 @@ local function restore(tid)
   return rec
 end
 
+-- End-of-session report: once, only if no pick was delivered (st.used) -- the selector callback gets nil.
+local function finish(st)
+  if st and st.on_end and not st.used and not st.ended then
+    st.ended = true
+    local ok, err = pcall(st.on_end)
+    if not ok then
+      util().log_error("saysdf.sidebar: " .. tostring(err))
+    end
+  end
+end
+
 local function forget(tid)
   local st = state[tid]
   if st then
@@ -203,6 +224,7 @@ local function forget(tid)
     state[tid] = nil
   end
   persist(tid, nil)
+  finish(st)
 end
 
 -- Live tab record (pane closed -- the record is dropped; D5: no tick subscription).
@@ -222,6 +244,16 @@ function M.is_sidebar(p)
     restore(t and tab_id(t))
   end
   return id ~= nil and by_pane[id] ~= nil and M.state_for(by_pane[id]) ~= nil
+end
+
+-- Forget records whose pane has gone while a selector is still waiting (reports the end of session).
+-- Cheap: a loop over at most one record per tab, mux.get_pane only for records with a pending report.
+function M.reap()
+  for tid, st in pairs(state) do
+    if st.on_end and not st.used and not st.ended and get_pane(st.pane_id) == nil then
+      forget(tid)
+    end
+  end
 end
 
 -- Close the pane: upstream CloseCurrentPane closes the tab's active pane.
@@ -339,6 +371,10 @@ function M.open(window, pane, spec)
     origin_pane_id = origin,
     choices = choices,
     on_result = spec.on_result,
+    on_hover = spec.on_hover,
+    on_end = spec.on_end and function()
+      spec.on_end(window, origin_pane)
+    end or nil,
     used = false,
     -- saysdfTerminal (file-browser D4): spec.multi -- the tool sends several actions per lifetime
     -- (saysdf files): the token is not spent, a repeat of the same value (send retries) is rejected.
@@ -395,7 +431,7 @@ local function input_selector(spec)
   local w = wezterm()
   local s = {}
   for k, v in pairs(spec) do
-    if k ~= "on_choice" and k ~= "tool" then
+    if k ~= "on_choice" and k ~= "tool" and k ~= "on_hover" then -- no preview without the sidebar
       s[k] = v
     end
   end
@@ -423,11 +459,20 @@ local function open_selector(window, pane, spec)
   if spec.fuzzy then
     table.insert(args, "--fuzzy")
   end
+  if type(spec.on_hover) == "function" then
+    table.insert(args, "--hover")
+  end
   local tool = spec.tool or spec.title or "pick"
   return M.open(window, pane, {
     tool = tool,
     args = args,
     choices = choices or {},
+    on_hover = type(spec.on_hover) == "function" and function(win, p, id)
+      spec.on_hover(win, p, id)
+    end or nil,
+    on_end = function(win, p)
+      call_choice(spec, win, p, nil, nil)
+    end,
     on_result = function(win, p, kind, payload)
       if kind == "pick" then
         local id = (payload ~= "") and payload or nil
@@ -530,6 +575,36 @@ function kinds.pick(window, pane, st, payload)
   return true
 end
 
+M.HOVER_PER_SEC = 20
+M.now = os.time -- seconds; replaced in tests
+
+function kinds.hover(window, pane, st, payload)
+  if st.stale or type(st.on_hover) ~= "function" then
+    return nil, "hover not enabled"
+  end
+  if st.choices == nil or st.choices[payload] == nil then
+    return nil, "hover id not in the list"
+  end
+  if st.hover_last == payload then
+    return nil, "hover repeat"
+  end
+  local sec = M.now()
+  if st.hover_sec ~= sec then
+    st.hover_sec, st.hover_n = sec, 0
+  end
+  if st.hover_n >= M.HOVER_PER_SEC then
+    return nil, "hover rate"
+  end
+  st.hover_n = st.hover_n + 1
+  st.hover_last = payload
+  local origin = origin_of(st, tid_of(pane), pane)
+  local ok, err = pcall(st.on_hover, window, origin, payload)
+  if not ok then
+    util().log_error("saysdf.sidebar: on_hover: " .. tostring(err))
+  end
+  return true
+end
+
 function kinds.action(window, pane, st, payload, value)
   local tid = tid_of(pane)
   local origin = origin_of(st, tid, pane)
@@ -609,6 +684,10 @@ function M.setup(o, config)
         M.handle_user_var(window, pane, name, value)
       end
     end)
+  end
+  local oks, status = pcall(require, "saysdf.status")
+  if oks and type(status) == "table" and status.hook then
+    status.hook("sidebar", M.reap)
   end
   local cb = w.action_callback(M.toggle_last)
   if opts.key then

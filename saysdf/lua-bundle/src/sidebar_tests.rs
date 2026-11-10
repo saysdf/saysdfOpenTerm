@@ -268,6 +268,110 @@ fn plain_labels_and_nested_selector_after_pick() {
     );
 }
 
+/// Live preview (change theme-live-preview D1-D3): `hover` is accepted only for issued ids and a selector
+/// with `on_hover`, never spends the token, repeats are ignored and the rate is capped.
+#[test]
+fn hover_accepted_ignored_and_capped() {
+    let l = lua();
+    assert_eq!(
+        s(
+            &l,
+            r#"hovers = {}
+            spec.on_hover = function(w, p, id) table.insert(hovers, p:pane_id() .. ':' .. id) end
+            open_pick()
+            local st = sp()
+            local side = panes[st.pane_id]
+            side.fg = 'C:\\x\\saysdf.exe'
+            local tok, V = st.token, 'SAYSDF_SIDEBAR'
+            local r = {}
+            local function try(v) table.insert(r, tostring(sb.handle_user_var(window, side, V, tok .. ':' .. v))) end
+            local has = false
+            for _, a in ipairs(last_split.args) do if a == '--hover' then has = true end end
+            table.insert(r, tostring(has))
+            sb.now = function() return 100 end
+            try('hover:a')      -- accepted
+            try('hover:a')      -- same id as the previous one
+            try('hover:zzz')    -- not in the issued list
+            try('hover:b')      -- accepted
+            table.insert(r, table.concat(hovers, ','))
+            -- flood: only 20 per second in total (2 already used), a new second resets the window
+            local n = 0
+            for i = 1, 40 do
+                if sb.handle_user_var(window, side, V, tok .. ':hover:' .. (i % 2 == 0 and 'a' or 'b')) then n = n + 1 end
+            end
+            table.insert(r, n)
+            sb.now = function() return 101 end
+            try('hover:' .. (hovers[#hovers]:match('1:(%a)') == 'a' and 'b' or 'a'))
+            -- the token is still valid: pick ends the session, on_choice once
+            try('pick:b')
+            table.insert(r, #picked .. ',' .. picked[1].id)
+            try('hover:a')      -- after the pick the token is spent
+            return table.concat(r, '|')"#
+        ),
+        "true|true|false|false|true|1:a,1:b|18|true|true|1,b|false"
+    );
+}
+
+#[test]
+fn hover_without_on_hover_is_ignored() {
+    let l = lua();
+    assert_eq!(
+        s(
+            &l,
+            r#"open_pick()
+            local st = sp()
+            local side = panes[st.pane_id]
+            side.fg = 'C:\\x\\saysdf.exe'
+            local has = false
+            for _, a in ipairs(last_split.args) do if a == '--hover' then has = true end end
+            local r = { tostring(has) }
+            table.insert(r, tostring(sb.handle_user_var(window, side, 'SAYSDF_SIDEBAR', st.token .. ':hover:a')))
+            -- the token was not spent by the refused hover
+            table.insert(r, tostring(sb.handle_user_var(window, side, 'SAYSDF_SIDEBAR', st.token .. ':pick:a')))
+            return table.concat(r, '|')"#
+        ),
+        "false|false|true"
+    );
+}
+
+/// The end of a session without a pick is reported once as on_choice(nil).
+#[test]
+fn closed_pane_reports_cancel_once() {
+    let l = lua();
+    assert_eq!(
+        s(
+            &l,
+            r#"local r = {}
+            open_pick()
+            local st = sp()
+            sb.reap()
+            table.insert(r, #picked)                  -- pane alive: nothing
+            panes[st.pane_id] = nil                   -- killed / closed by the user
+            sb.reap()
+            sb.reap()
+            table.insert(r, #picked .. ',' .. tostring(picked[1].id) .. ',' .. picked[1].pane)
+            -- a delivered pick is not followed by a second report
+            picked = {}
+            open_pick()
+            st = sp()
+            local side = panes[st.pane_id]
+            side.fg = 'C:\\x\\saysdf.exe'
+            sb.handle_user_var(window, side, 'SAYSDF_SIDEBAR', st.token .. ':pick:a')
+            panes[st.pane_id] = nil
+            sb.reap()
+            sb.toggle(window, main, 't')
+            table.insert(r, #picked .. ',' .. picked[1].id)
+            -- replaced by another tool: the old selector gets a cancel
+            picked = {}
+            open_pick()
+            sb.selector({ tool = 'u', title = 'U', choices = {}, on_choice = function() end }).cb(window, main)
+            table.insert(r, #picked .. ',' .. tostring(picked[1].id))
+            return table.concat(r, '|')"#
+        ),
+        "0|1,nil,1|1,a|1,nil"
+    );
+}
+
 #[test]
 fn texts_follow_language() {
     let l = lua();

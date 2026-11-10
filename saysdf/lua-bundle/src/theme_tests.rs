@@ -81,6 +81,59 @@ fn light_dark_pair() {
     );
 }
 
+/// Live preview (change theme-live-preview D5): hover sets overrides in all windows without saving,
+/// Enter saves, Esc / an invalid id / a closed panel restore the scheme from before opening.
+#[test]
+fn hover_previews_and_cancel_restores() {
+    let l = lua();
+    assert_eq!(
+        s(
+            &l,
+            r#"local function mkwin(initial)
+                   local w = { ov = nil, perform_action = function() end }
+                   function w:get_config_overrides() return self.ov end
+                   function w:set_config_overrides(o) self.ov = o end
+                   function w:effective_config()
+                       return { color_scheme = (self.ov and self.ov.color_scheme) or initial }
+                   end
+                   return w
+               end
+               local wezterm = package.loaded.wezterm
+               local function setup(initial)
+                   wins = { mkwin(initial), mkwin(initial) }
+                   wezterm.gui = { gui_windows = function() return wins end }
+                   wezterm.color = { get_builtin_schemes = function() return { Dracula = {}, Nord = {} } end }
+                   saves = 0
+                   theme.save = function() saves = saves + 1 return true end
+                   package.loaded['saysdf.sidebar'] = { selector = function(spec) cap = spec return {} end }
+                   theme.select(wins[1], nil)
+               end
+               local function cur(i) return tostring(wins[i]:effective_config().color_scheme) end
+               local r = {}
+               setup('Nord')
+               cap.on_hover(wins[1], nil, 'Dracula')
+               table.insert(r, cur(1) .. cur(2) .. saves)         -- all windows, nothing saved
+               cap.on_hover(wins[1], nil, 'Evil')                  -- not in the list: ignored
+               table.insert(r, cur(1))
+               cap.on_choice(wins[1], nil, nil)                    -- Esc
+               table.insert(r, cur(1) .. cur(2) .. saves)
+               cap.on_hover(wins[1], nil, 'Dracula')
+               cap.on_choice(wins[1], nil, 'Dracula')              -- Enter
+               table.insert(r, cur(1) .. cur(2) .. saves)
+               setup('Nord')
+               cap.on_hover(wins[1], nil, 'Dracula')
+               cap.on_choice(wins[1], nil, 'Evil')                 -- invalid selection
+               table.insert(r, cur(1) .. saves)
+               setup(nil)                                          -- no scheme in effect: the override is removed
+               cap.on_hover(wins[1], nil, 'Nord')
+               cap.on_choice(wins[1], nil, nil)                    -- panel closed is reported the same way
+               table.insert(r, cur(1) .. tostring(wins[1]:get_config_overrides().color_scheme))
+               return table.concat(r, '|')"#
+        ),
+        "DraculaDracula0|Dracula|NordNord0|DraculaDracula1|Nord0|nilnil"
+    );
+}
+
 #[test]
 fn presets_registered_and_listed() {
     let l = lua();

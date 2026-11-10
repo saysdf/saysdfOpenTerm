@@ -24,6 +24,7 @@ fn lua() -> Lua {
             ("saysdf.claude", get("saysdf.claude").unwrap()),
             ("saysdf.i18n", get("saysdf.i18n").unwrap()),
             ("saysdf.status", get("saysdf.status").unwrap()),
+            ("saysdf.tabs", get("saysdf.tabs").unwrap()),
             ("saysdf.util", get("saysdf.util").unwrap()),
             ("saysdf.workspaces", get("saysdf.workspaces").unwrap()),
         ]
@@ -133,6 +134,54 @@ fn serialize_roundtrip_and_validation() {
          return table.concat(r, '|')",
     );
     assert_eq!(errs, "not an object|no version|future version 99|bad layout in tab 1|bad json");
+}
+
+// change workspace-naming, W-1: tab color in the save file.
+#[test]
+fn tab_color_roundtrip_old_file_invalid_and_names() {
+    let l = lua();
+    let out = s(
+        &l,
+        "local lay = { pane = { cwd = '/a' } }
+         local d = ws.to_data({ name = 'p', tabs = {
+           { color = '#aabbcc', layout = lay }, { layout = lay }, { color = 'nope', layout = lay },
+           { color = 'red', layout = lay } } })
+         assert(d.tabs[1].color == '#aabbcc' and d.tabs[2].color == nil)
+         local back = assert(ws.from_data(d))
+         local r = { tostring(back.tabs[1].color), tostring(back.tabs[2].color), tostring(back.tabs[3].color) }
+         -- old file: no color field at all
+         local old = assert(ws.from_data({ version = 1, name = 'o', tabs = { { layout = lay } } }))
+         table.insert(r, tostring(old.tabs[1].color))
+         -- a palette name resolves to its value
+         local first = require('saysdf.tabs').DEFAULT_COLORS[1]
+         local named = assert(ws.from_data({ version = 1, name = 'n', tabs = { { color = first.name, layout = lay } } }))
+         table.insert(r, tostring(named.tabs[1].color == first.color))
+         return table.concat(r, ' ')",
+    );
+    assert_eq!(out, "#aabbcc nil nil nil true");
+}
+
+#[test]
+fn restore_applies_tab_color() {
+    let l = lua();
+    let out = s(
+        &l,
+        "local tabs = require('saysdf.tabs')
+         local set = {}
+         tabs.get_color = function(t) return t.color end
+         tabs.set_color = function(t, c) table.insert(set, t.name .. '=' .. c) end
+         local function pane() return { split = function() return pane() end } end
+         local function mk(name, color) return { name = name, color = color, set_title = function() end } end
+         local window = { spawn_tab = function() return mk('t2', '#00ff00'), pane() end }
+         package.loaded.wezterm.mux = {
+           spawn_window = function() return mk('t1', '#ff0000'), pane(), window end,
+           set_active_workspace = function() end,
+         }
+         ws.restore({ name = 'p', tabs = { { color = '#ff0000', layout = { pane = { cwd = '/a' } } },
+                                         { layout = { pane = { cwd = '/b' } } } } }, false)
+         return table.concat(set, ',')",
+    );
+    assert_eq!(out, "t1=#ff0000");
 }
 
 #[test]
@@ -1310,4 +1359,239 @@ fn manual_save_bypasses_the_shrink_guard() {
          return saved_tabs('default') .. ''",
     );
     assert_eq!(out, "1");
+}
+
+// Rename / save as (change workspace-naming, tasks 2.1-2.3). One window in workspace 'default'.
+const NAMING: &str = r#"
+    notices, opened = {}, {}
+    util.notify = function(_, _, text) table.insert(notices, text) end
+    package.loaded['saysdf.viewer'] = { open = function(_, _, path) table.insert(opened, path) return true end }
+    ws.setup({ dir = '/d', key = false, palette = false, restore = 'ask' })
+    local w = package.loaded.wezterm
+    w.action.PromptInputLine = function(a) return { prompt = a } end
+    w.mux.rename_workspace = function(old, new)
+      for _, x in ipairs(windows) do if x._ws == old then x._ws = new end end
+    end
+    acts = {}
+    function naming_ws(name)
+      windows = {}
+      local tab, pane, win = new_window({ cwd = '/w/api', workspace = name or 'default' })
+      win.active_workspace = function() return win._ws end
+      win.perform_action = function(_, act) table.insert(acts, act) end
+      return win, pane
+    end
+    function other_ws(name) new_window({ cwd = '/w/x', workspace = name }) end
+"#;
+
+fn naming() -> Lua {
+    let l = mux_lua();
+    l.load(NAMING).exec().unwrap();
+    l
+}
+
+#[test]
+fn rename_decision_validates_the_name() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local open = { 'a', 'b' }
+         local function d(old, new, ex) return ws.rename_decision(old, new, open, ex).action end
+         local ex = function(n) return n == 'saved' end
+         return table.concat({ d('a', nil), d('a', '   '), d('a', ' a '), d('a', 'b'), d('a', ' saved ', ex), d('a', 'fresh', ex),
+           ws.rename_decision('a', '  fresh  ', open).name }, '|')",
+    );
+    assert_eq!(out, "cancel|cancel|same|refuse|confirm|go|fresh");
+}
+
+#[test]
+fn rename_moves_state_and_files_including_preview() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         fs['/d/default.json'] = 'J' fs['/d/default.preview.md'] = 'P'
+         ws.save('default', true, 'J')
+         local res
+         ws.rename_workspace(win, pane, 'default', ' proj ', { done = function(ok, n) res = tostring(ok) .. n end })
+         return table.concat({ res, win:active_workspace(), tostring(fs['/d/default.json']), tostring(fs['/d/default.preview.md']),
+           fs['/d/proj.json'], fs['/d/proj.preview.md'], tostring(ws.commands_allowed('proj')), #acts, #notices }, '|')",
+    );
+    assert_eq!(out, "trueproj|proj|nil|nil|J|P|true|0|0");
+}
+
+#[test]
+fn rename_without_saved_file_only_renames_the_workspace() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.rename_workspace(win, pane, 'default', 'fresh')
+         local n = 0 for _ in pairs(fs) do n = n + 1 end
+         return win:active_workspace() .. '|' .. n",
+    );
+    assert_eq!(out, "fresh|1"); // only last-session.json
+}
+
+#[test]
+fn rename_to_an_open_workspace_is_refused() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         other_ws('busy')
+         fs['/d/default.json'] = 'J'
+         local res
+         ws.rename_workspace(win, pane, 'default', 'busy', { done = function(ok) res = tostring(ok) end })
+         return res .. '|' .. windows[1]._ws .. '|' .. fs['/d/default.json'] .. '|' .. notices[1]",
+    );
+    assert_eq!(out, "false|default|J|A workspace named busy is already open");
+}
+
+#[test]
+fn rename_over_a_saved_file_asks_and_defaults_to_no() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         fs['/d/default.json'] = 'NEW' fs['/d/old.json'] = 'OLD' fs['/d/old.preview.md'] = 'OLDP'
+         local res = {}
+         ws.rename_workspace(win, pane, 'default', 'old', { done = function(ok) table.insert(res, tostring(ok)) end })
+         local sel = acts[1]
+         local first, before = sel.choices[1].id, windows[1]._ws .. fs['/d/old.json']
+         sel.action(nil, nil, 'no')   -- No: nothing changes
+         local after_no = windows[1]._ws .. fs['/d/old.json']
+         sel.action(nil, nil, nil)    -- Esc: nothing changes
+         sel.action(nil, nil, 'yes')
+         return table.concat({ first, before, after_no, table.concat(res, ','), windows[1]._ws, fs['/d/old.json'],
+           tostring(fs['/d/old.preview.md']), tostring(fs['/d/default.json']) }, '|')",
+    );
+    assert_eq!(out, "no|defaultOLD|defaultOLD|false,false,true|old|NEW|nil|nil");
+}
+
+#[test]
+fn save_as_renames_and_writes_under_the_new_name() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.save_as_prompt(win, pane)
+         local p = acts[1].prompt
+         local initial = p.initial_value
+         p.action(nil, nil, 'Release 2')
+         return table.concat({ initial, win:active_workspace(), tostring(fs['/d/Release 2.json'] ~= nil),
+           tostring(fs['/d/Release 2.preview.md'] ~= nil), tostring(fs['/d/default.json']), #opened }, '|')",
+    );
+    assert_eq!(out, "default|Release 2|true|true|nil|1");
+}
+
+#[test]
+fn save_as_same_name_just_saves_and_esc_cancels() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.save_as_prompt(win, pane)
+         acts[1].prompt.action(nil, nil, nil)
+         local after_esc = tostring(fs['/d/default.json'])
+         acts[1].prompt.action(nil, nil, 'default')
+         return after_esc .. '|' .. win:active_workspace() .. '|' .. tostring(fs['/d/default.json'] ~= nil) .. '|' .. #acts",
+    );
+    assert_eq!(out, "nil|default|true|1");
+}
+
+#[test]
+fn rename_prompt_starts_with_the_current_name() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.rename_prompt(win, pane)
+         local p = acts[1].prompt
+         p.action(nil, nil, '')   -- empty: cancel
+         local same = win:active_workspace()
+         p.action(nil, nil, 'next')
+         return p.initial_value .. '|' .. same .. '|' .. win:active_workspace()",
+    );
+    assert_eq!(out, "default|default|next");
+}
+
+// New workspace (task 2.4) and last-session after rename (2.1).
+const NEWWS: &str = r#"
+    package.loaded.wezterm.action.SwitchToWorkspace = function(a) return { switch = a } end
+    restored = {}
+    ws.restore = function(x) table.insert(restored, x) end
+"#;
+
+#[test]
+fn new_workspace_with_a_fresh_name_spawns_in_the_pane_cwd() {
+    let l = naming();
+    l.load(NEWWS).exec().unwrap();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.new_workspace_prompt(win, pane)
+         acts[1].prompt.action(nil, nil, ' fresh ')
+         local a = acts[2].switch
+         return a.name .. '|' .. tostring(a.spawn.cwd) .. '|' .. #restored",
+    );
+    assert!(out.starts_with("fresh|") && out.ends_with("|0"), "{out}");
+    assert!(out.contains("w/api"), "{out}");
+}
+
+#[test]
+fn new_workspace_with_an_open_name_just_switches() {
+    let l = naming();
+    l.load(NEWWS).exec().unwrap();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         other_ws('busy')
+         ws.new_workspace(win, pane, 'busy')
+         local a = acts[1].switch
+         return a.name .. '|' .. tostring(a.spawn) .. '|' .. #restored",
+    );
+    assert_eq!(out, "busy|nil|0");
+}
+
+#[test]
+fn new_workspace_with_a_saved_name_restores_it() {
+    let l = naming();
+    l.load(NEWWS).exec().unwrap();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.save('old', true, ws.encode({ name = 'old', tabs = {} }))
+         ws.new_workspace(win, pane, 'old')
+         return #acts .. '|' .. #restored",
+    );
+    assert_eq!(out, "0|1");
+}
+
+#[test]
+fn new_workspace_esc_and_empty_cancel() {
+    let l = naming();
+    l.load(NEWWS).exec().unwrap();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         ws.new_workspace_prompt(win, pane)
+         local p = acts[1].prompt
+         p.action(nil, nil, nil)
+         p.action(nil, nil, '  ')
+         return #acts .. '|' .. #restored",
+    );
+    assert_eq!(out, "1|0");
+}
+
+#[test]
+fn rename_rewrites_last_session_at_once() {
+    let l = naming();
+    let out = s(
+        &l,
+        "local win, pane = naming_ws('default')
+         fs['/d/last-session.json'] = '{\"version\":1,\"workspaces\":[\"default\"]}'
+         ws.rename_workspace(win, pane, 'default', 'proj')
+         return table.concat(ws.last_session() or {}, ',')",
+    );
+    assert_eq!(out, "proj");
 }

@@ -63,3 +63,18 @@
 "Nothing to save: the workspace has no tabs" = "Нечего сохранять: в рабочем пространстве нет вкладок"
 "Saved: {tabs} tabs, {panes} panes, {claude} Claude sessions" = "Сохранено: вкладок {tabs}, панелей {panes}, сессий Claude {claude}"
 "Preview: {path}" = "Предпросмотр: {path}"
+
+# Rename / save as (change workspace-naming): palette entries, prompts, notices, overwrite confirmation.
+"Workspaces: save as…" = "Рабочие пространства: сохранить как…"
+"Workspaces: rename…" = "Рабочие пространства: переименовать…"
+"Workspace name (Esc to cancel)" = "Имя рабочего пространства (Esc — отмена)"
+"Save workspace as (Esc to cancel)" = "Сохранить рабочее пространство как (Esc — отмена)"
+"A workspace named {name} is already open" = "Рабочее пространство «{name}» уже открыто"
+"Could not rename the workspace" = "Не удалось переименовать рабочее пространство"
+"The saved files were not moved: {error}" = "Сохранённые файлы не перенесены: {error}"
+"Replace the saved workspace {name}?" = "Заменить сохранённое рабочее пространство «{name}»?"
+"No, keep it" = "Нет, оставить"
+"Yes, replace" = "Да, заменить"
+"New workspace…" = "Новое рабочее пространство…"
+"Workspaces: new…" = "Рабочие пространства: новое…"
+"New workspace name (Esc to cancel)" = "Имя нового рабочего пространства (Esc — отмена)"
